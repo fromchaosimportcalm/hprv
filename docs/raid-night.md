@@ -7,8 +7,12 @@ Start here to actually play. `CLAUDE.md` has the five rules that explain
 
 ## Starting a session
 
-Bots do not survive your logout (`CLAUDE.md` rule 4), so every session
-begins by rebuilding the raid.
+Bots log out when you do, so every session begins by rebuilding the raid.
+
+> **This whole step goes away once the pool migration lands.** With the 40
+> characters on your own account and `BotAutologin = 1`, they are added
+> automatically the moment you log in — see `docs/pool.md`. Until then,
+> summon by name as below.
 
 **1. Check the server is up and ready.** The units are `Type=simple`, so
 `systemctl start` returns while the server is still ~6 minutes from

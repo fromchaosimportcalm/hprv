@@ -15,6 +15,7 @@ human tanks TBC raids for a raid of bots.
 |---|---|
 | Understand the project and its non-obvious rules | `CLAUDE.md` |
 | Play tonight | `docs/raid-night.md` |
+| Set up the 40-character pool | `docs/pool.md` |
 | Rebuild the server from nothing | `docs/build.md` |
 | Create the container | `docs/host-create.md` |
 
@@ -25,8 +26,10 @@ something other than what they are.
 ## Quick reference
 
 ```bash
-scripts/roster-status.sh          # level/class/gear/spec for all 25, from the DB
-scripts/gear-pass.sh              # force the spec roll, then gear
+scripts/roster-status.sh              # level/class/gear/spec for all 25, from the DB
+scripts/hprv-spec.sh --list           # the 40-character pool
+scripts/hprv-spec.sh <char> --show    # one character: spec, defence, co override
+scripts/hprv-spec.sh <char> "<spec>"  # switch spec AND gear
 ```
 
 Summon the raid in game (two lines — 24 names exceeds a safe chat length;
@@ -43,10 +46,14 @@ Summon the raid in game (two lines — 24 names exceeds a safe chat length;
 CLAUDE.md              the brief — read first
 docs/
   build.md             standing the server up, phases A-F
+  pool.md              the 40-character pool: design, setup, spec switching
   host-create.md       host-side LXC creation
   raid-night.md        session runbook
 scripts/
   phase-*.sh           idempotent build/setup scripts
+  pool.conf            the 40, with home specs and offspecs
+  hprv-spec.sh         switch one character's spec and gear
+  migrate-pool.sql     pool migration (review before running)
   roster.conf          the 24 bots. Committed so they can be re-summoned
   roster-status.sh     DB-side status report
   gear-pass.sh         spec-then-gear passes

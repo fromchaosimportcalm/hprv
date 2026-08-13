@@ -111,25 +111,35 @@ It no longer applies. With rule 1 in force there is exactly one body
 the DPS bots against and the global `+threat` cap works as designed.
 Whispering `co -threat` now would only uncap the DPS.
 
-### 4. The roster does not survive your logout, and cannot be made to
+### 4. Bot persistence is reachable, but only off the `rndbot` accounts
 
-`AiPlayerbot.KeepAltsInGroup` exists and looks like the answer. It is
-not, for this roster. The branch in `PlayerbotMgr.cpp` only holds a
-group together for members where `!IsInRandomAccountList(account)`, and
-`randomBotAccounts` is populated by enumerating every account matching
-the `rndbot` prefix — which is all 100 of them, both pool types. Every
-roster bot is on an `RNDBOT*` account, so every roster bot fails that
-test and the group disbands.
+Three capabilities that look like one setting are three independent
+gates:
 
-This is a genuine tension, not an oversight: the roster is drawn from
-the AddClass pool *because* the `init=` gearing commands are gated to
-AddClass bots. Hand-rolled alts on your own account would persist, and
-would then have to be levelled and geared by hand.
+| Capability | Gated on |
+|---|---|
+| Gearable by `init=` | `IsAccountType(id, 2)` — a row in `playerbots_account_type` |
+| Never re-geared by the ambient system | `IsRandomBot()` — needs the account name to match `rndbot%` |
+| Auto-login when you log in | `BotAutologin` — your **own** account only |
 
-**So: every session begins by re-summoning the roster by name.** That is
-why `scripts/roster.conf` exists and why it is committed —
-`addclass` draws from an unordered set and will not hand back the same
-characters. See `docs/raid-night.md`.
+The gearing gate is a plain table lookup, so it works for any account.
+The churn gate is a name prefix. Put the roster on **your own account**
+with an `account_type = 2` row and you get all three at once.
+
+This supersedes the old rule that bots "cannot be made persistent". That
+was true only for a roster drawn from `rndbot` accounts, which the
+project used because `init=` gearing appeared to require it. It does not.
+
+What persists: gear, spec, talents, identity — structurally, because the
+ambient system cannot see these characters. What does not: they still log
+out when you do. Nothing keeps a bot in the world without a master.
+
+**Auto-login is all-or-nothing.** The module runs a bare
+`SELECT name FROM characters WHERE account = <yours>` and adds every
+result — no subsetting. Rotation therefore means who gets *invited to the
+raid*, not who is logged in.
+
+Full design and setup: `docs/pool.md`.
 
 ### 5. Config edits need `.reload config` *then* `.playerbots bot reload`
 
