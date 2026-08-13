@@ -156,6 +156,32 @@ UPDATE acore_auth.realmcharacters
  WHERE acctid = 101 AND realmid = 1;
 
 -- =====================================================================
+-- SECTION 2b — keep YOUR characters at the top of character select
+--
+-- The character list is ordered by:
+--     ORDER BY COALESCE(c.order, c.guid)      (CHAR_SEL_ENUM)
+--
+-- `order` is NULL for everyone by default, so the list falls back to GUID
+-- — and the pool characters have LOWER guids (501-1000) than Bullwark
+-- (1001), which buries the one character you actually play at the bottom
+-- of a 42-entry list.
+--
+-- There is NO reorder handler in the core (no CMSG_REORDER_CHARACTERS
+-- implementation), so this cannot be fixed by dragging in the client. It
+-- is a server-side column or nothing.
+--
+-- `order` is a TINYINT, so any non-NULL value (max 127) sorts ahead of
+-- every GUID fallback. Setting just these two is enough; the 40 bots keep
+-- NULL and follow in GUID order behind them.
+--
+-- Takes effect on the next character-list request — back out to character
+-- select, no restart needed.
+-- =====================================================================
+
+UPDATE acore_characters.characters SET `order` = 0 WHERE name = 'Bullwark';
+UPDATE acore_characters.characters SET `order` = 1 WHERE name = 'Restofarian';
+
+-- =====================================================================
 -- SECTION 3 — verification. All of these should hold afterwards.
 -- =====================================================================
 
