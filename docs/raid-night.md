@@ -19,8 +19,8 @@ Bots log out when you do, so every session begins by rebuilding the raid.
 accepting logins. Watch the journal, not the unit state:
 
 ```bash
-ssh root@192.168.4.124 'systemctl status hprv-world --no-pager | head -5'
-ssh root@192.168.4.124 'journalctl -u hprv-world -n 20 --no-pager'
+ssh root@192.168.4.124 'systemctl status hprv-worldserver --no-pager | head -5'
+ssh root@192.168.4.124 'journalctl -u hprv-worldserver -n 20 --no-pager'
 ```
 
 **2. Check nothing drifted** while you were away:

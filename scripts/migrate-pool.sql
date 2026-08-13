@@ -31,7 +31,9 @@
 -- ---------------------------------------------------------------------
 -- BEFORE YOU RUN IT
 --
---   1. Stop the world server.  systemctl stop hprv-world
+--   1. Stop the world server.  systemctl stop hprv-worldserver
+--      (the unit is hprv-worldserver, not hprv-world; hprv-authserver
+--       can stay up, it just leaves people at realm select)
 --      Characters must not be online. Moving an online character's
 --      account out from under it is asking for a stale in-memory write.
 --   2. Back up.  mysqldump acore_characters acore_auth acore_playerbots
