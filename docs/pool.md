@@ -100,22 +100,66 @@ It has a **smoke-test section that migrates two characters only** —
 between them they exercise both paths. Run that, restart, verify, and only
 then run the rest. A rollback section is at the bottom.
 
-### 3. Bring the ten level-1 draws up
+### 3. The level-1 draws bring themselves up
 
-Ten of the 40 are level 1 and need a full pass. `init=epic` levels them to
-your level, gears, specs and skills them, and runs
-`InitAttunementQuests()` — the TBC raid attunements come free.
+**This step is mostly automatic** — verified on the box 2026-08-13.
+`OnBotLogin` carries:
+
+```cpp
+bool addClassBot = IsAccountType(accountId, 2);
+if (addClassBot && master && abs(master->GetLevel() - bot->GetLevel()) > 3)
+    PlayerbotFactory(bot, master->GetLevel(), ITEM_QUALITY_LEGENDARY,
+                     mixedGearScore).Randomize(false);
+```
+
+So a level-1 draw logging in behind your level-70 master is levelled,
+geared and specced in one login, with no pass at all. Gerina went 1 → 70
+at avg ilvl 138 epics that way. `InitAttunementQuests()` runs too, so the
+TBC raid attunements come free.
+
+**But the spec is rolled at random** by `RandomClassSpecProb`. Gerina
+happened to land on `arms pve`, which is what `pool.conf` wanted, at
+roughly a 20% chance. Budget one `hprv-spec.sh` pass each for the other
+nine to set the intended spec:
 
 ```
-Delatasia (paladin)   Maroman  (priest)    Gerina  (warrior)
-Fimur     (shaman)    Tyrnan   (rogue)     Lonhwa  (warrior)
-Cirtiglaz (shaman)    Alais    (warlock)   Gelanlan (hunter)
-                      Bemarlarin (warlock)
+Delatasia (paladin)   Maroman  (priest)    Lonhwa  (warrior)
+Fimur     (shaman)    Tyrnan   (rogue)     Gelanlan (hunter)
+Cirtiglaz (shaman)    Alais    (warlock)   Bemarlarin (warlock)
 ```
 
-For each: summon it, then `scripts/hprv-spec.sh <name> "<home spec>"`.
+**The same gate is why migrating the veterans is safe.** The level gap
+must *exceed 3*, so a level-70 character behind a level-70 master is
+never touched. Netohje came through the migration with his gear
+bit-for-bit unchanged.
 
----
+### 4. Fix the under-tier veterans
+
+The tier is `AutoGearScoreLimit = 141` and most of the pool sits at
+134–139. Six do not, all of them veterans carrying gear from the old
+125-era limit:
+
+| Character | avg ilvl | Note |
+|---|---|---|
+| Netohje | 115 | **blue**, and dual-wielding — fury-geared, not the crit-immune prot tank the old notes claim |
+| Ararin | 119 | the off-tank, already under the defence floor at 476 |
+| Anmine | 122 | |
+| Restofarian | 122 | |
+| Tanke | 127 | |
+| Celerina | 127 | |
+
+Note the irony before planning around it: **the level-1 draws come out of
+auto-gear better equipped (~138) than five of your veterans.** Because
+auto-gear only fires on a level gap, a stale level-70 never self-corrects.
+
+Each is one `hprv-spec.sh` pass. Two carry extra cost:
+
+- **Netohje** is the designated bot-mode main tank and cannot do that job
+  as he stands. A pass to `prot pve` re-gears him at tier, then he needs
+  the defence top-up.
+- **Ararin** has hand-picked defence items and a persistent `co`
+  conversion. A pass wipes the items and clears the override — both have
+  to be redone. Read the tank-mode and defence-floor notes first.
 
 ## Switching spec and gear
 
