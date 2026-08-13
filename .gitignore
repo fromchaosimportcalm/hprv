@@ -1,0 +1,27 @@
+# Credentials - never commit
+# (mirrors clintonops-infra/.gitignore — same house rule)
+.env
+*.env
+!*.env.example
+secrets.yml
+*secrets*
+
+# Extracted client data — Blizzard copyright, never in git.
+# See CLAUDE.md guardrails.
+dbc/
+maps/
+vmaps/
+mmaps/
+cameras/
+*.MPQ
+
+# Build output
+build/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+*.code-workspace
