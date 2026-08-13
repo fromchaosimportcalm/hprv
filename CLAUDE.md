@@ -111,35 +111,40 @@ It no longer applies. With rule 1 in force there is exactly one body
 the DPS bots against and the global `+threat` cap works as designed.
 Whispering `co -threat` now would only uncap the DPS.
 
-### 4. Bot persistence is reachable, but only off the `rndbot` accounts
+### 4. The client shows 10 characters. That caps everything.
 
-Three capabilities that look like one setting are three independent
-gates:
+`CharactersPerRealm` is validated `> 0 && <= 10` in `WorldConfig.cpp:231`
+and the config comment says why: **`Default: 10 - (Client limitation)`**.
+Set it higher and the server logs
+
+```
+Server Config (Name: CharactersPerRealm) failed validation check '> 0 && <= 10'.
+Default value '10' will be used instead.
+```
+
+The cap is enforced only at character *creation*
+(`CharacterHandler.cpp:420`), **not** at enum — so an account holding more
+than 10 characters sends them all and the client answers
+"Error retrieving character list". Learned the hard way at 41.
+
+Three separate gates matter here, and they are routinely confused:
 
 | Capability | Gated on |
 |---|---|
 | Gearable by `init=` | `IsAccountType(id, 2)` — a row in `playerbots_account_type` |
-| Never re-geared by the ambient system | `IsRandomBot()` — needs the account name to match `rndbot%` |
-| Auto-login when you log in | `BotAutologin` — your **own** account only |
+| Safe from ambient gear churn | **account type 1 vs 2**, not the account name. The ambient pool is built from `rndBotTypeAccounts` (type 1) only, and `IsRandomBot()` needs both the `rndbot%` name *and* membership in `currentBots` |
+| Auto-login + group persistence | `BotAutologin` / `KeepAltsInGroup` — **your own account only**, so at most 9 bots |
 
-The gearing gate is a plain table lookup, so it works for any account.
-The churn gate is a name prefix. Put the roster on **your own account**
-with an `account_type = 2` row and you get all three at once.
+**Characters on type-2 `rndbot` accounts are already gear-safe.** They are
+gearable and the ambient system never touches them. Moving them to your
+own account buys auto-login and group persistence — nothing more, and
+only for 9 of them.
 
-This supersedes the old rule that bots "cannot be made persistent". That
-was true only for a roster drawn from `rndbot` accounts, which the
-project used because `init=` gearing appeared to require it. It does not.
+So the layout is: **10 on your account** (Bullwark + 9 that auto-login,
+which is exactly a 10-man raid), and the rest of the pool on their type-2
+accounts, summoned by name.
 
-What persists: gear, spec, talents, identity — structurally, because the
-ambient system cannot see these characters. What does not: they still log
-out when you do. Nothing keeps a bot in the world without a master.
-
-**Auto-login is all-or-nothing.** The module runs a bare
-`SELECT name FROM characters WHERE account = <yours>` and adds every
-result — no subsetting. Rotation therefore means who gets *invited to the
-raid*, not who is logged in.
-
-Full design and setup: `docs/pool.md`.
+Full design: `docs/pool.md`.
 
 ### 5. Config edits need `.reload config` *then* `.playerbots bot reload`
 
