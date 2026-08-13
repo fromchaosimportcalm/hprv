@@ -303,10 +303,11 @@ Structural properties of the encounters, not tuning problems:
 
 - **`roster-status.sh` reports `ACTUAL-SPEC` as `-`.** The pool migration
   deleted `playerbots_random_bots` rows for the migrated characters, and
-  `specNo` — which that column reads — lives there. It is written by
-  `PlayerbotFactory` during any `init=`, so **it self-heals per character
-  as each one goes through a gear pass**. Until then the spec-drift check
-  is blind. Nothing else depends on it.
+  `specNo` — which that column reads — lives there. `PlayerbotFactory`
+  rewrites it during `init=`, **but only when `EquipAndSpecPersistence`
+  is off** — the same gate that blocks the respec itself. So it heals as
+  each character goes through an `hprv-spec.sh` pass, which turns that
+  flag off for the duration, and not otherwise.
 - **Ararin still trips the "defence items in BAGS" warning.** True but no
   longer actionable — he is at 511 and the bagged pieces are worse than
   what he wears. The check has no notion of "already sufficient".

@@ -195,9 +195,16 @@ running `init=`, and putting the table back. By hand that is six steps
 with two silent failure modes.
 
 The script does the fiddly parts — probability-table surgery with backup
-and guaranteed restore, spec-name validation against the installed
-config, stale `co` override deletion, and the post-pass defence check —
-then prints three lines for you to paste. **It cannot run those three for
+and guaranteed restore, **turning `EquipAndSpecPersistence` off for the
+pass**, spec-name validation against the installed config, stale `co`
+override deletion, and the post-pass defence check — then prints three
+lines for you to paste.
+
+> That persistence flag is the one that bites hardest. It gates both
+> `resetTalents()` and `InitTalentsTree()` inside `PlayerbotFactory`
+> (lines 625, 691), so with it on, `init=` on a level-70 bot re-gears the
+> character and **silently keeps the old spec**. The pass looks like it
+> worked and nothing changed. **It cannot run those three for
 you** (see the SOAP note above).
 
 ### Tank mode

@@ -136,6 +136,20 @@ force_spec_prob() {
     sed -i -E "s/^(AiPlayerbot\.RandomClassSpecProb\.${cid}\.${want} *= *).*/\1100/" "$PB_CONF"
 }
 
+# EquipAndSpecPersistence gates BOTH resetTalents() and InitTalentsTree()
+# inside PlayerbotFactory (lines 625, 691). With it on, a level-70 bot runs
+# init=, gets re-geared, and keeps its OLD SPEC — silently. It is also why
+# specNo stops being written. gear-pass.sh has always turned it off for a
+# pass; this must too.
+set_key() {
+    local key="$1" val="$2"
+    if grep -qE "^AiPlayerbot\.${key} *=" "$PB_CONF"; then
+        sed -i -E "s/^(AiPlayerbot\.${key} *= *).*/\1${val}/" "$PB_CONF"
+    else
+        printf 'AiPlayerbot.%s = %s\n' "$key" "$val" >> "$PB_CONF"
+    fi
+}
+
 restore_conf() {
     [[ -n "$PB_BACKUP" && -r "$PB_BACKUP" ]] || return 0
     cp -p "$PB_BACKUP" "$PB_CONF"
@@ -273,6 +287,9 @@ info ""
 info "1. forcing RandomClassSpecProb.${CID}.* -> ${IDX}=100, rest 0"
 backup_conf
 force_spec_prob "$CID" "$IDX"
+# Without this the respec is a silent no-op on any level-70 bot.
+set_key EquipAndSpecPersistence 0
+info "  EquipAndSpecPersistence -> 0 (restored in step 3)"
 
 info ""
 info "2. applying config and re-gearing"
@@ -284,7 +301,7 @@ queue ".playerbots bot init=${QUALITY} ${CHAR}"
 flush_cmds
 
 info ""
-info "3. restoring the probability table"
+info "3. restoring the probability table and EquipAndSpecPersistence"
 restore_conf; PB_BACKUP=""
 trap - EXIT
 queue ".reload config"
