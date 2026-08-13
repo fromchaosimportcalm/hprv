@@ -36,7 +36,16 @@
 --       can stay up, it just leaves people at realm select)
 --      Characters must not be online. Moving an online character's
 --      account out from under it is asking for a stale in-memory write.
---   2. Back up.  mysqldump acore_characters acore_auth acore_playerbots
+--   2. Back up (~100 MB):
+--        mkdir -p /mnt/hprv/server/backups
+--        mysqldump --single-transaction --databases \
+--          acore_characters acore_auth acore_playerbots \
+--          > /mnt/hprv/server/backups/pre-pool-$(date +%Y%m%d).sql
+--      NOT /mnt/hprv itself — it is owned by 65534 (host root, unmapped
+--      into this unprivileged container), so container-root cannot write
+--      there. One level down is acore-owned and fine.
+--      Check the last line reads "-- Dump completed"; a truncated dump
+--      still looks plausible at several megabytes.
 --   3. Make the config changes in docs/pool.md FIRST — in particular
 --      CharactersPerRealm, or the client will not show 42 characters.
 --   4. Run the SMOKE TEST section alone. Start the server, log in, verify
