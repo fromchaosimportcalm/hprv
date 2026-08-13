@@ -1,8 +1,9 @@
 # HPRV — Hellfire Peninsula Retirement Village
 
-A 3.3.5a AzerothCore + mod-playerbots server. One human tanks; 24 bots
-fill a 25-man raid; ~20 more bots wander the world as ambient
-population. Target content is TBC endgame — Karazhan through Black
+A 3.3.5a AzerothCore + mod-playerbots server. One human tanks. A standing
+ten-man raid auto-logs-in with you; a wider pool of 40 characters is
+summoned by name for 25-man nights; ~20 more bots wander the world as
+ambient population. Target content is TBC endgame — Karazhan through Black
 Temple — tuned back toward 2.4.3 difficulty.
 
 This is the repo-root `CLAUDE.md`, auto-loaded when a session opens
@@ -22,7 +23,8 @@ a fact is unverified it says so.
 | Resources | 4 vCPU, 12 GB RAM, Tank-backed bulk storage |
 | Core | `mod-playerbots/azerothcore-wotlk`, Playerbot branch, pinned |
 | Module | `mod-playerbots/mod-playerbots`, pinned to the same merge |
-| Raid | 1 human prot warrior (`Bullwark`) + 24 bots |
+| Standing raid | 10 on your own account, **auto-login** — Bullwark + 9 bots |
+| Wider pool | 31 more on type-2 accounts, summoned by name for 25-man |
 | Ambient | 20 random bots, levels 25–80, live in the open world |
 | Gear tier | `AutoGearScoreLimit = 141` |
 | Furthest kill | Black Temple: Naj'entus, Supremus (2026-08-13) |
@@ -296,6 +298,18 @@ Structural properties of the encounters, not tuning problems:
   mechanic bots handle poorly.
 
 ---
+
+## Known regressions
+
+- **`roster-status.sh` reports `ACTUAL-SPEC` as `-`.** The pool migration
+  deleted `playerbots_random_bots` rows for the migrated characters, and
+  `specNo` — which that column reads — lives there. It is written by
+  `PlayerbotFactory` during any `init=`, so **it self-heals per character
+  as each one goes through a gear pass**. Until then the spec-drift check
+  is blind. Nothing else depends on it.
+- **Ararin still trips the "defence items in BAGS" warning.** True but no
+  longer actionable — he is at 511 and the bagged pieces are worse than
+  what he wears. The check has no notion of "already sufficient".
 
 ## Open questions
 

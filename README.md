@@ -4,7 +4,8 @@ A private 3.3.5a AzerothCore server running `mod-playerbots`, where one
 human tanks TBC raids for a raid of bots.
 
 - **1 human** prot warrior, main tank
-- **24 bots**, a balanced 25-man comp
+- **A standing 10-man** on your own account that auto-logs-in with you
+- **31 more** pool characters summoned by name for 25-man nights
 - **20 more bots** living in the open world as ambient population
 - Runs as an LXC on ClintonOps, 4 vCPU / 12 GB, Tank-backed storage
 - Furthest kill: **Black Temple** — Naj'entus, Supremus
@@ -43,13 +44,9 @@ Running them from the checkout fails with
 `cannot read /mnt/hprv/server/etc/modules/playerbots.conf` — that means
 "you are on the wrong machine", not that anything is broken.
 
-Summon the raid in game (two lines — 24 names exceeds a safe chat length;
-`roster-status.sh` prints these ready to paste):
-
-```
-.playerbots bot add Ararin,Nathos,Krast,Tanke,Izri,Lomul,Dijito,Celerina,Ilyna,Anmine,Sehjece,Crumm
-.playerbots bot add Rechiw,Ralda,Zaene,Muhnun,Fehmos,Dehme,Olidina,Irntifumm,Mutlie,Tengwe,Vestanza,Grohtarty
-```
+For a 10-man, just log in — the nine bots on your account come up with
+you. For 25-man nights, summon the extra bodies by name;
+`roster-status.sh` prints the paste line.
 
 ## Layout
 

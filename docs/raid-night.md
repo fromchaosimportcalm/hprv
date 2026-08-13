@@ -7,80 +7,67 @@ Start here to actually play. `CLAUDE.md` has the five rules that explain
 
 ## Starting a session
 
-Bots log out when you do, so every session begins by rebuilding the raid.
+**For a 10-man, there is no opener.** Log in as `Bullwark` and the nine
+bots on your account are added automatically — `BotAutologin` adds every
+character on your own account, and `KeepAltsInGroup` brings them back
+already grouped.
 
-> **This whole step goes away once the pool migration lands.** With the 40
-> characters on your own account and `BotAutologin = 1`, they are added
-> automatically the moment you log in — see `docs/pool.md`. Until then,
-> summon by name as below.
+That standing ten is:
 
-**1. Check the server is up and ready.** The units are `Type=simple`, so
-`systemctl start` returns while the server is still ~6 minutes from
-accepting logins. Watch the journal, not the unit state:
+| | |
+|---|---|
+| Bullwark | human prot warrior — **main tank** |
+| Ararin | prot paladin off-tank (converted, 511 defence) |
+| Nathos, Krast, Tanke, Restofarian | holy pal, resto shaman, 2× resto druid |
+| Izri, Dijito, Ilyna | mage, shadow priest, hunter |
+| Anmine | rogue |
 
-```bash
-ssh root@192.168.4.124 'systemctl status hprv-worldserver --no-pager | head -5'
-ssh root@192.168.4.124 'journalctl -u hprv-worldserver -n 20 --no-pager'
-```
+Two things worth a glance before pulling:
 
-**2. Check nothing drifted** while you were away:
+1. **The server takes ~6 minutes to become ready.** The units are
+   `Type=simple`, so `systemctl start` returns while the world is still
+   loading. Watch the journal, not the unit state:
+   ```bash
+   ssh root@192.168.4.124 'journalctl -u hprv-worldserver -n 20 --no-pager'
+   ```
+2. **No raid-frame flags.** You are the only body `IsTank()` accepts, so
+   `GetMainTankGuid()` resolves to you on its own. Do not flag anyone.
+
+### For a 25-man night
+
+Summon the extra bodies by name from the wider pool. The nine are already
+in, so you need 15 more:
 
 ```bash
 ssh root@192.168.4.124 /opt/hprv/scripts/roster-status.sh
 ```
 
-Reports level, class, gear and spec straight from the DB, no login
-needed. It reads **last-saved** state — if you hand-equipped anything
-last session and did not `.save`, this lies.
+prints the paste line ready to go. The command is `.playerbots bot`, not
+`.bot` — there is no such alias at this pin.
 
-**3. Log in as `Bullwark` and summon the raid.** Two lines, pasted in
-game — 24 names plus the command exceeds a comfortable chat length:
+### Only when a *new* plate bot joins
 
-```
-.playerbots bot add Ararin,Nathos,Krast,Tanke,Izri,Lomul,Dijito,Celerina,Ilyna,Anmine,Sehjece,Crumm
-.playerbots bot add Rechiw,Ralda,Zaene,Muhnun,Fehmos,Dehme,Olidina,Irntifumm,Mutlie,Tengwe,Vestanza,Grohtarty
-```
-
-The command is `.playerbots bot`, **not** `.bot`. There is no such alias
-at this pin, whatever the guides say.
-
-**4. Invite to raid.** No raid-frame flags are needed — you are the only
-body `IsTank()` accepts, so `GetMainTankGuid()` resolves to you on its
-own. Do not flag anyone.
-
-**5. Confirm the raid strategy activated** on instance entry. It
-auto-applies and whispers when it does.
-
-**That is the whole opener.** No `co` whispers, no `-threat`, nothing
-per-session. Every override this raid needs is already persisted in
-`playerbots_db_store`.
-
-### Only when a *new* bot joins the raid
-
-If you draw a fresh body from the pool and it is a plate class that
-arrives tank-specced, convert it before it raids — once, ever:
+If you draw a fresh body from the pool and it arrives tank-specced,
+convert it before it raids — once, ever:
 
 ```
 /w <bot> co -tank,-tank assist,+dps,+dps assist
 ```
 
-Skipping this is not subtle: it will taunt bosses off you on cooldown
-all night. See `CLAUDE.md` rule 1.
+Skipping this is not subtle: it will taunt bosses off you on cooldown all
+night. See `CLAUDE.md` rule 1.
 
 ### If the server was restarted
 
-Nothing extra. The overrides are in the database, not in memory. But
-budget the ~6-minute start, of which 311 seconds is the module parsing
-its own 102 KB config.
-
----
+Nothing extra. Every override lives in the database, not in memory.
 
 ## Ending a session
 
-Just log out. The bots go with you and the raid lockout stays bound to
-their names — which is exactly why `scripts/roster.conf` is committed.
-Re-summoning *those* names next time puts you back in front of the same
-half-cleared instance.
+Just log out. The bots go with you, and the raid lockout stays bound to
+their names — which is why the pool is written down. Logging back in
+restores the standing ten automatically and puts you in front of the same
+half-cleared instance; for a 25-man, re-summon *the same* extra names, or
+the raid resets in usefulness even though the lockout survives.
 
 ---
 

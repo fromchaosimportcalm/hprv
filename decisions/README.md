@@ -1,7 +1,10 @@
 # Decisions
 
-This directory is for decisions made **from 2026-08-13 onward**. It is
-empty on purpose.
+This directory is for decisions made **from 2026-08-13 onward**.
+
+- `0001` — a standing ten on your own account, and a wider pool summoned
+  by name. Records the 10-character client ceiling, the three gates that
+  are routinely confused, and why SOAP cannot drive the bot commands.
 
 ## Where the history went
 
