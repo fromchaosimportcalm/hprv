@@ -8,47 +8,62 @@ Where something is untested, it says so.
 
 ---
 
-## The idea
+## The shape
 
-Three capabilities that everyone assumes are one setting are actually
-three independent gates:
+**Account 101 (yours) holds 10 characters, and they auto-login with you.**
+That is a standing 10-man raid — Karazhan-capable — that costs no
+commands. The other 31 pool characters stay on their type-2 `rndbot`
+accounts and are summoned by name for 25-man nights.
 
-| Capability | Gated on | Mechanism |
-|---|---|---|
-| Gearable by `init=` | `IsAccountType(id, 2)` | a `SELECT` on `playerbots_account_type` |
-| Never re-geared by the ambient system | `IsRandomBot()` | needs the account name to match `rndbot%` |
-| Auto-login when you log in | `BotAutologin` | adds every character on **your own** account |
+### Why 10 and not 40
 
-Put the pool on **your own account** and insert one `account_type = 2`
-row for it, and you get all three. The gearing gate is a table lookup, so
-it works for any account; the churn gate is a name prefix, and `CLINTON`
-will never match it.
+The client renders at most 10 characters per realm. `CharactersPerRealm`
+is validated `> 0 && <= 10` (`WorldConfig.cpp:231`) and documented
+`Default: 10 - (Client limitation)`. Raising it is silently rejected:
 
-This is what supersedes the old "bots cannot be made persistent" rule.
-That rule was true for a roster drawn from `rndbot` accounts — which the
-project used because `init=` gearing appeared to require it. It doesn't.
+```
+Server Config (Name: CharactersPerRealm) failed validation check '> 0 && <= 10'.
+Default value '10' will be used instead.
+```
 
-### What you get, precisely
+And the cap is enforced **only at character creation**
+(`CharacterHandler.cpp:420`), never at enum — so an account holding more
+than 10 sends them all and the client answers *"Error retrieving
+character list."* Hit for real at 41 characters.
 
-- **Gear, spec, talents and identity persist.** Structural, not a
-  setting: the ambient random system cannot see these characters.
-- **They auto-login with you**, already grouped if `KeepAltsInGroup` is
-  on.
-- **They still log out when you do.** Nothing keeps a bot in the world
-  without a master, and that is fine.
+### Three gates, routinely confused
 
-### The one thing you cannot have
+| Capability | Gated on |
+|---|---|
+| Gearable by `init=` | `IsAccountType(id, 2)` — a row in `playerbots_account_type` |
+| Safe from ambient gear churn | **account type 1 vs 2.** The ambient pool is built from `rndBotTypeAccounts` (type 1) only, and `IsRandomBot()` needs the `rndbot%` name *and* membership in `currentBots` |
+| Auto-login + group persistence | `BotAutologin` / `KeepAltsInGroup` — **your own account only** |
 
-**Auto-login is all-or-nothing.** The module runs a bare
-`SELECT name FROM characters WHERE account = <yours>` and adds every
-result. There is no subsetting and no exclusion list.
+**A type-2 `rndbot` character is already gearable and already churn-safe.**
+Moving it to your account buys auto-login and group persistence, and
+nothing else. That is worth 9 slots; it is not worth breaking the
+character list.
 
-So all 40 come up every time. Rotation means *who gets invited to the
-raid*, not who is logged in. That is cheap: `LogInGroupOnly = 1` stops a
-bot running its full AI unless it is grouped with a real player master,
-so the ~15 sitting out are close to free.
+### The standing ten
 
----
+| Character | Role |
+|---|---|
+| Bullwark | human prot warrior — **main tank** |
+| Ararin | prot paladin off-tank (converted) |
+| Nathos, Krast, Tanke, Restofarian | holy pal, resto shaman, 2× resto druid |
+| Izri, Dijito, Ilyna | mage, shadow priest, hunter |
+| Anmine | rogue |
+
+1 tank, 1 off-tank, 4 healers, 4 DPS. Swapping one is a single `UPDATE`
+— move one out before moving one in, and never exceed 10. The procedure
+is in `scripts/migrate-pool.sql` SECTION 2.
+
+### 25-man nights
+
+The nine bots are already in. Summon the extra bodies by name from the
+remaining 31 — `roster-status.sh` prints the paste line. Nothing about
+those characters is second-class: they gear, spec and switch exactly like
+the standing ten.
 
 ## Faction is a hard constraint
 
@@ -63,12 +78,10 @@ him. Filter on race before drawing any replacement.
 
 ### 1. Config changes
 
-`worldserver.conf`:
-
-```
-CharactersPerRealm = 45          # was 10. You need 42: Bullwark +
-                                 # Restofarian + 40 pool characters.
-```
+`worldserver.conf`: **no change.** Leave `CharactersPerRealm` at `10`.
+An earlier version of this doc said to raise it to 45; that is rejected by
+the validator and is the direct cause of "Error retrieving character
+list".
 
 `playerbots.conf`:
 
@@ -92,13 +105,12 @@ assignment loop only ever *tops up*, never trims, so nothing happens.
 ### 2. Migrate
 
 `scripts/migrate-pool.sql`, run by hand with the world server stopped and
-a dump taken first. It moves 39 characters onto account 101, inserts the
-`account_type` row, and clears their stale ambient-system bookkeeping.
+a dump taken first. It inserts the `account_type` row for account 101 and
+moves the standing ten into place.
 
-It has a **smoke-test section that migrates two characters only** —
-`Netohje` (geared, level 70) and `Gerina` (level 1, needs a full pass), so
-between them they exercise both paths. Run that, restart, verify, and only
-then run the rest. A rollback section is at the bottom.
+**Section 2 is a warning, not a migration** — read it before moving any
+further character onto the account. Section 4 is a rollback that restores
+every original account from a backup table.
 
 ### 3. The level-1 draws bring themselves up
 

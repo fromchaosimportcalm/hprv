@@ -46,8 +46,9 @@
 --      there. One level down is acore-owned and fine.
 --      Check the last line reads "-- Dump completed"; a truncated dump
 --      still looks plausible at several megabytes.
---   3. Make the config changes in docs/pool.md FIRST — in particular
---      CharactersPerRealm, or the client will not show 42 characters.
+--   3. Make the config changes in docs/pool.md FIRST. Leave
+--      CharactersPerRealm at 10 — it is a hard client limit, see
+--      SECTION 2.
 --   4. Run the SMOKE TEST section alone. Start the server, log in, verify
 --      the two test characters auto-login and can be geared. Only then
 --      run the rest.
@@ -108,52 +109,74 @@ UPDATE acore_auth.realmcharacters
 --   SELECT * FROM acore_playerbots.playerbots_account_type WHERE account_id=101;
 
 -- =====================================================================
--- SECTION 2 — the remaining 37
+-- SECTION 2 — DO NOT MIGRATE THE REST. Read this before you do anything.
 --
--- Restofarian is already on 101 and is not listed. Ralda is deliberately
--- NOT here: the pool caps death knights at 2 and keeps the two converted
--- blood off-tanks (Crumm, Rechiw). He stays a pool character on his
--- rndbot account, available if you ever want him back.
+-- An earlier version of this file moved all 39 pool characters onto
+-- account 101. That is WRONG and it will break your character list.
+--
+-- CharactersPerRealm is validated `> 0 && <= 10` (WorldConfig.cpp:231)
+-- and the config comment says why: "Default: 10 - (Client limitation)".
+-- Raising it is silently rejected:
+--
+--   Server Config (Name: CharactersPerRealm) failed validation check
+--   '> 0 && <= 10'. Default value '10' will be used instead.
+--
+-- The cap is enforced only at character CREATION
+-- (CharacterHandler.cpp:420), never at enum — so an account holding more
+-- than 10 characters sends them all and the client answers "Error
+-- retrieving character list". Hit for real at 41 characters.
+--
+-- ---------------------------------------------------------------------
+-- AND THE MIGRATION WAS NEVER NEEDED FOR GEAR PERSISTENCE.
+--
+-- The ambient pool is built from rndBotTypeAccounts — account type 1
+-- ONLY (RandomPlayerbotMgr.cpp:619, 686). IsRandomBot() requires BOTH an
+-- 'rndbot%' account name AND membership in currentBots. Type-2 AddClass
+-- characters are never in currentBots, so the ambient system can never
+-- re-gear them, wherever they live.
+--
+-- So moving a character to account 101 buys exactly two things:
+-- auto-login (BotAutologin) and group persistence (KeepAltsInGroup).
+-- Both are own-account-only, and the client ceiling caps them at 9 bots.
+--
+-- ---------------------------------------------------------------------
+-- THE CORRECT LAYOUT
+--
+--   Account 101, 10 characters: Bullwark + 9 that auto-login with you.
+--   That is exactly a 10-man raid, standing, with no commands typed.
+--
+--   Everything else: stays on its type-2 rndbot account, gearable and
+--   churn-safe, summoned by name for 25-man nights.
+--
+-- The 8 bots currently on 101 alongside Bullwark and Restofarian:
+--   Ararin   prot paladin   off-tank
+--   Nathos   holy paladin   heal
+--   Krast    resto shaman   heal
+--   Tanke    resto druid    heal
+--   Izri     mage           ranged
+--   Dijito   shadow priest  ranged
+--   Ilyna    hunter         ranged
+--   Anmine   rogue          melee
+--
+-- To SWAP one for another, move one out and one in — never exceed 10:
+--
+--   UPDATE acore_characters.characters c
+--     JOIN acore_characters.hprv_pool_migration_backup b ON b.guid = c.guid
+--      SET c.account = b.old_account
+--    WHERE c.name = 'the one leaving';
+--
+--   UPDATE acore_characters.characters SET account = 101
+--    WHERE name = 'the one arriving';
+--
+--   UPDATE acore_auth.realmcharacters
+--      SET numchars = (SELECT COUNT(*) FROM acore_characters.characters
+--                       WHERE account = 101)
+--    WHERE acctid = 101 AND realmid = 1;
+--
+-- ALWAYS verify before logging in:
+--   SELECT COUNT(*) FROM acore_characters.characters WHERE account = 101;
+--   -- must be <= 10
 -- =====================================================================
-
-INSERT INTO acore_characters.hprv_pool_migration_backup (guid, name, old_account)
-SELECT guid, name, account FROM acore_characters.characters
- WHERE name IN (
-    'Ararin','Nathos','Zaene','Daedana','Delatasia',
-    'Tanke','Mutlie','Tengwe','Caugotsa',
-    'Krast','Irntifumm','Sehjece','Fimur','Cirtiglaz',
-    'Dehme','Olidina','Dijito','Maroman',
-    'Grahlukk','Lonhwa',
-    'Izri','Lomul','Vestanza','Eriona',
-    'Celerina','Grohtarty','Alais','Bemarlarin',
-    'Ilyna','Fehmos','Drusun','Gelanlan',
-    'Anmine','Muhnun','Tyrnan',
-    'Crumm','Rechiw'
- )
- ON DUPLICATE KEY UPDATE name = VALUES(name);
-
-UPDATE acore_characters.characters
-   SET account = 101
- WHERE name IN (
-    'Ararin','Nathos','Zaene','Daedana','Delatasia',
-    'Tanke','Mutlie','Tengwe','Caugotsa',
-    'Krast','Irntifumm','Sehjece','Fimur','Cirtiglaz',
-    'Dehme','Olidina','Dijito','Maroman',
-    'Grahlukk','Lonhwa',
-    'Izri','Lomul','Vestanza','Eriona',
-    'Celerina','Grohtarty','Alais','Bemarlarin',
-    'Ilyna','Fehmos','Drusun','Gelanlan',
-    'Anmine','Muhnun','Tyrnan',
-    'Crumm','Rechiw'
- );
-
-DELETE r FROM acore_playerbots.playerbots_random_bots r
-  JOIN acore_characters.characters c ON c.guid = r.bot
- WHERE c.account = 101;
-
-UPDATE acore_auth.realmcharacters
-   SET numchars = (SELECT COUNT(*) FROM acore_characters.characters WHERE account = 101)
- WHERE acctid = 101 AND realmid = 1;
 
 -- =====================================================================
 -- SECTION 2b — keep YOUR characters at the top of character select
@@ -185,7 +208,8 @@ UPDATE acore_characters.characters SET `order` = 1 WHERE name = 'Restofarian';
 -- SECTION 3 — verification. All of these should hold afterwards.
 -- =====================================================================
 
--- Expect 42: Bullwark + Restofarian + 40 pool characters.
+-- MUST be <= 10, or the client cannot render the list at all.
+-- Currently 10: Bullwark, Restofarian + the 8-bot core.
 -- SELECT COUNT(*) FROM acore_characters.characters WHERE account = 101;
 
 -- Expect exactly one row, account_type = 2.
