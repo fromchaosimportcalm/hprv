@@ -214,6 +214,21 @@ is_plate_or_bear() {
 
 if [[ "$1" == "--list" ]]; then list_pool "${2:-}"; exit 0; fi
 
+if [[ "$1" == "--restore" ]]; then
+    newest="$(ls -1t "${PB_CONF}".hprv-spec.*.bak 2>/dev/null | head -1 || true)"
+    [[ -n "$newest" ]] || die "no hprv-spec backup found next to $PB_CONF"
+    cp -p "$newest" "$PB_CONF"
+    info "Restored $PB_CONF from $newest"
+    info ""
+    info "Now, in game:"
+    info ""
+    info "    .reload config"
+    info "    .playerbots bot reload"
+    info ""
+    info "Verify:  $(dirname "$0")/roster-status.sh"
+    exit 0
+fi
+
 CHAR="$1"; shift
 LINE="$(pool_line "$CHAR")"
 [[ -n "$LINE" ]] || die "'$CHAR' is not in $POOL_CONF. Run --list to see the pool."
@@ -281,8 +296,6 @@ if [[ "$(char_online "$CHAR")" != "1" ]]; then
     die "aborting — nothing has been changed. Summon it, then re-run."
 fi
 
-trap 'restore_conf' EXIT
-
 info ""
 info "1. forcing RandomClassSpecProb.${CID}.* -> ${IDX}=100, rest 0"
 backup_conf
@@ -292,7 +305,7 @@ set_key EquipAndSpecPersistence 0
 info "  EquipAndSpecPersistence -> 0 (restored in step 3)"
 
 info ""
-info "2. applying config and re-gearing"
+info "2. PASTE THESE IN GAME, IN THIS ORDER"
 # Both reloads, in this order. `.playerbots bot reload` alone re-applies
 # what ConfigMgr cached at startup — it never reads disk.
 queue ".reload config"
@@ -300,17 +313,13 @@ queue ".playerbots bot reload"
 queue ".playerbots bot init=${QUALITY} ${CHAR}"
 flush_cmds
 
-info ""
-info "3. restoring the probability table and EquipAndSpecPersistence"
-restore_conf; PB_BACKUP=""
-trap - EXIT
-queue ".reload config"
-queue ".playerbots bot reload"
-flush_cmds
+# The config is deliberately LEFT FORCED here. Restoring it at this point
+# is what made every earlier pass roll the default spec: the script cannot
+# wait for the paste, so the table has to survive until `--restore`.
 
 # --- strategy overrides ------------------------------------------------
 info ""
-info "4. strategy overrides"
+info "3. strategy overrides"
 if has_co_override "$GUID"; then
     clear_co_override "$GUID"
     info "  cleared the stale 'co' override (it was frozen at the OLD spec's"
@@ -329,8 +338,20 @@ fi
 # --- report ------------------------------------------------------------
 info ""
 info "=============================================================="
-info " DONE — $CHAR is now $TARGET_SPEC with matching gear."
+info " NOT DONE YET — two steps remain, in this order."
 info "=============================================================="
+info ""
+info " 1. Paste the three lines from step 2 above, in game, now."
+info "    The forced probability table is LIVE in $PB_CONF while you do."
+info ""
+info " 2. Then put the config back:"
+info ""
+info "        $0 --restore"
+info ""
+info " Until you run --restore, every OTHER $CLASS rolls $TARGET_SPEC too."
+info " This is two commands rather than one because the script cannot wait"
+info " for you to paste — an earlier version restored the table immediately"
+info " and the pass silently rolled the DEFAULT spec every time."
 
 if [[ -n "$NEEDS_WHISPER" ]]; then
     info ""
