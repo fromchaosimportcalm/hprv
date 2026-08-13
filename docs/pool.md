@@ -175,10 +175,15 @@ Each is one `hprv-spec.sh` pass. Two carry extra cost:
 
 ## Switching spec and gear
 
+Server-side tool — deploy first, then run it there:
+
 ```bash
-scripts/hprv-spec.sh --list [class]        # what's in the pool
-scripts/hprv-spec.sh <character> --show    # current state, defence, co override
-scripts/hprv-spec.sh <character> "<spec>" [--mode human|bot]
+./scripts/deploy.sh                        # from your checkout
+
+H=root@192.168.4.124
+ssh $H /opt/hprv/scripts/hprv-spec.sh --list [class]
+ssh $H /opt/hprv/scripts/hprv-spec.sh <character> --show
+ssh $H /opt/hprv/scripts/hprv-spec.sh <character> "<spec>" [--mode human|bot]
 ```
 
 ### Why the script exists

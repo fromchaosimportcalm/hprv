@@ -26,7 +26,7 @@ ssh root@192.168.4.124 'journalctl -u hprv-worldserver -n 20 --no-pager'
 **2. Check nothing drifted** while you were away:
 
 ```bash
-scripts/roster-status.sh
+ssh root@192.168.4.124 /opt/hprv/scripts/roster-status.sh
 ```
 
 Reports level, class, gear and spec straight from the DB, no login

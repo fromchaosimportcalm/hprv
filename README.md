@@ -25,12 +25,23 @@ something other than what they are.
 
 ## Quick reference
 
+**These are server-side tools.** They read `playerbots.conf`, `hprv.env`
+and a local MySQL socket, so they run on the box, not in your checkout.
+Edit here, deploy, run there:
+
 ```bash
-scripts/roster-status.sh              # level/class/gear/spec for all 25, from the DB
-scripts/hprv-spec.sh --list           # the 40-character pool
-scripts/hprv-spec.sh <char> --show    # one character: spec, defence, co override
-scripts/hprv-spec.sh <char> "<spec>"  # switch spec AND gear
+./scripts/deploy.sh                   # push this repo's scripts to /opt/hprv/scripts
+
+H=root@192.168.4.124
+ssh $H /opt/hprv/scripts/roster-status.sh          # level/class/gear/spec, from the DB
+ssh $H /opt/hprv/scripts/hprv-spec.sh --list       # the 40-character pool
+ssh $H /opt/hprv/scripts/hprv-spec.sh Ararin --show
+ssh $H /opt/hprv/scripts/hprv-spec.sh Tanke "balance pve"
 ```
+
+Running them from the checkout fails with
+`cannot read /mnt/hprv/server/etc/modules/playerbots.conf` — that means
+"you are on the wrong machine", not that anything is broken.
 
 Summon the raid in game (two lines — 24 names exceeds a safe chat length;
 `roster-status.sh` prints these ready to paste):
@@ -51,6 +62,7 @@ docs/
   raid-night.md        session runbook
 scripts/
   phase-*.sh           idempotent build/setup scripts
+  deploy.sh            push scripts to /opt/hprv/scripts on the box
   pool.conf            the 40, with home specs and offspecs
   hprv-spec.sh         switch one character's spec and gear
   migrate-pool.sql     pool migration (review before running)
