@@ -54,5 +54,18 @@ one commit, not about the module forever.
 Start conservative and one raid at a time. The point is a raid that
 occasionally wipes because a bot stood in fire — not an unkillable one.
 
+**Start in Karazhan. Black Temple is off-limits until it is cleared.**
+Measured 2026-08-15: the Illidari Council's shared pool is ~4.89M
+(controller entry 23426, level 70 class 1, `HealthModifier = 700`,
+`basehp1 = 6986`) and its 15-minute berserk demands ~5,430 raid DPS. At
+`AutoGearScoreLimit = 141` the raid produces ~4,130 — 30% short of the
+**already-nerfed** number this directory exists to undo. Restoring 2.4.3
+HP there would push the pool toward ~7M on a fight that cannot be
+finished today.
+
+This is what rule 2 of this file is for in practice: an enrage-timer
+failure is the signal that a tier is not yet cleared, and tuning an
+uncleared tier measures gear, not 2.4.3 feel. See ADR `0005`.
+
 Each meaningful tuning decision → an ADR in `decisions/`, recording the
 percentage used and what it felt like.

@@ -28,6 +28,7 @@ a fact is unverified it says so.
 | Ambient | 20 random bots, levels 25–80, live in the open world |
 | Gear tier | `AutoGearScoreLimit = 141` |
 | Furthest kill | Black Temple: Naj'entus, Supremus (2026-08-13) |
+| Furthest attempt | Illidari Council to 24%, lost to the 15-min berserk (2026-08-15) |
 
 **The human tanks. That is the point of the project**, and it is the
 constraint every other decision bends around. Non-goals: perfect boss
@@ -37,7 +38,7 @@ recovered by tuning instead).
 
 ---
 
-## The five rules that actually matter
+## The six rules that actually matter
 
 Everything else in this repo is procedure. These are the ones where
 getting it wrong costs a raid night and presents as an unrelated fault.
@@ -68,7 +69,44 @@ threat instead of by taunt — which is what you want from a plate body on
 adds anyway.
 
 **Any plate bot that arrives tank-specced needs this before it raids.**
-Currently applied to `Ararin`, `Crumm`, `Rechiw`.
+Genuinely applied to `Ararin` and `Crumm` — re-verified 2026-08-14.
+
+> **`Rechiw` is NOT converted, and this is live.** He has zero rows in
+> `playerbots_db_store` and knows Rune Tap, Mark of Blood and Vampiric
+> Blood, so `AiFactory` grants him the full tank set from spec every
+> login. He is on account 83, so this is a **25-man-only** fault — he is
+> not in the standing ten, and the only plate body that auto-logs-in
+> (`Ararin`) is genuinely converted. The whisper needs him summoned, so
+> it can only land on a 25-man night. This file previously listed him as done: the
+> 2026-08-13 check asked whether anyone *carries* `+tank`, and a bot
+> with no rows answers "no" while running it from spec. **Absence of a
+> `co` row is not evidence of conversion — it is evidence of the
+> opposite.**
+
+**The rule is symmetric, and which character you log in as decides it.**
+Auto-login is all-or-nothing — the module runs a bare `SELECT name FROM
+characters WHERE account = <yours>` with no exclusion — so `Bullwark`
+arrives as a bot whenever he is not the one you picked, and he carries
+no `co`, so he arrives a full tank.
+
+- **Log in as a DPS or healer** — fine, no preparation. `Bullwark`
+  main-tanks, still exactly one `IsTank()` body, `+threat` cap intact.
+  This is now the supported bot-tank mode; `Netohje` is retired (ADR
+  `0002`).
+- **Log in as `Ararin` or any plate body** — rule 1 fires *at you*.
+  Convert `Bullwark` with the same whisper first; it is harmless to
+  leave in place, since `co` governs bot AI only.
+
+Nothing advances the raid on its own on any character — every movement
+primitive is relative to the master. You always lead.
+
+> **One encounter suspends this rule, deliberately: the Illidari
+> Council.** Its assist-tank roles gate on `IsTank()`, so a fully
+> converted raid leaves Malande and Veras untanked — and the encounter
+> script zeroes every taunt action for `IsTank()` bots in combat with
+> Gathios, so the fault rule 1 exists to prevent cannot fire there.
+> Restore two plate bodies at the Council's door, revert before Illidan.
+> ADR `0004`, and the runbook section in `docs/raid-night.md`.
 
 ### 2. `co` writes a persistent, total override — and it is a trap
 
@@ -85,12 +123,16 @@ Two consequences:
   logs in running the *previous* spec's strategies with no warning. Any
   pass that changes a spec must first clear the override with `co !`, or
   delete the bot's `playerbots_db_store` rows.
-- **Whatever raid you were standing in got baked in.** All 20 bots
-  currently carrying overrides have `+blacktemple` frozen into their
-  saved lists, because that is where they were when the whisper landed.
-  Raid strategies auto-apply on instance entry anyway, so this is
-  believed harmless — but it is unverified, and it is the first thing to
-  suspect if bots behave oddly in a *different* raid.
+- **Whatever raid you were standing in got baked in.** All **21** bots
+  carrying overrides have `+blacktemple` frozen into their saved lists
+  (21 of 21, re-counted 2026-08-14), because that is where they were
+  when the whisper landed.
+  **This is now verified harmless** (2026-08-15).
+  `PlayerbotAI::ApplyInstanceStrategies()` (`PlayerbotAI.cpp:1620`)
+  removes *every* instance strategy from both engines and then adds back
+  only the one matching the map you entered. A frozen `+blacktemple` is
+  stripped on entering Karazhan and re-added on entering Black Temple,
+  whatever the saved list says.
 
 Verify what a bot actually carries with a bare `co` (no arguments), or:
 
@@ -160,6 +202,34 @@ is the module parsing its own 102 KB `playerbots.conf`**. The systemd
 units are `Type=simple`, so `systemctl start` returns instantly while
 the server is still minutes from ready. Watch the journal, not the unit
 state.
+
+### 6. Raid-frame flags are role assignments, and they persist
+
+`group_member.memberFlags` is read by the module, survives logout and
+restart, and is invisible unless you go looking. `MEMBER_FLAG_MAINTANK`
+(`2`) makes `GetMainTankGuid()` (`PlayerbotAI.cpp:2378`) return that
+body **without ever checking `IsTank()`** — so a flag left on a rule-1
+converted plate bot makes the raid's main tank a body with no tank
+strategies, no taunt and no crit immunity, while your real tank holds
+nothing. `MEMBER_FLAG_ASSISTANT` (`1`) orders every per-role index the
+raid scripts use — assist tank 0/1, assist heal 0 — ahead of group join
+order. `MEMBER_FLAG_MAINASSIST` (`4`) is read nowhere in the module.
+
+Found live on 2026-08-15 with the main-tank flag on `Ararin`, which cost
+a Black Temple night and misdirected every hunter Misdirection in the
+raid to the wrong body. **This repo previously said "do not flag
+anyone". That was wrong.** Audit before a serious night:
+
+```sql
+SELECT c.name, c.class, c.online, gm.memberFlags, gm.subgroup
+  FROM acore_characters.group_member gm
+  JOIN acore_characters.characters c ON c.guid = gm.memberGuid
+ ORDER BY gm.subgroup, gm.memberGuid;
+```
+
+Leader **or** assistant can set icons and the main-tank flag; only the
+leader can promote assistants. A bot holding raid lead is normal —
+`/w Bullwark give leader` hands it back. See ADR `0003`.
 
 ---
 
@@ -280,6 +350,14 @@ one of which is `RandomChangeMultiplier` (unrelated — random-bot churn).
 Verified 2026-08-13. If bot competence ever needs lowering, it is a
 module patch or a gear-tier drop, not a config edit.
 
+**Start it in Karazhan, not Black Temple.** BT is already gated on gear
+rather than on tuning: the Illidari Council's ~4.89M shared pool needs
+~5,430 raid DPS to beat its 15-minute berserk, and at
+`AutoGearScoreLimit = 141` the raid does ~4,130 — 30% short of the
+*nerfed* value the restore would undo. Raise the tier first; no HP
+restore lands in Black Temple until the Council dies inside its timer.
+ADR `0005`.
+
 Each meaningful tuning decision → an ADR via the haven-log flow.
 
 ---
@@ -311,6 +389,13 @@ Structural properties of the encounters, not tuning problems:
 - **Ararin still trips the "defence items in BAGS" warning.** True but no
   longer actionable — he is at 511 and the bagged pieces are worse than
   what he wears. The check has no notion of "already sufficient".
+- **`roster.conf` does not match the live raid.** The 2026-08-15 group
+  audit found `Netohje` (RNDBOT96) and `Gerina` (RNDBOT50) in the raid;
+  neither is in `roster.conf`, and neither carries a `co` row — which by
+  ADR `0002`'s rule is evidence of *non*-conversion. Both are warriors,
+  so if either is prot-specced it is a live rule-1 fault. Check with a
+  bare `co` whisper before the next serious night. `Rechiw` was **not**
+  in that raid, so the known 25-man fault did not apply to it.
 
 ## Open questions
 

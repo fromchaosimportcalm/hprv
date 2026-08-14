@@ -30,8 +30,73 @@ Two things worth a glance before pulling:
    ```bash
    ssh root@192.168.4.124 'journalctl -u hprv-worldserver -n 20 --no-pager'
    ```
-2. **No raid-frame flags.** You are the only body `IsTank()` accepts, so
-   `GetMainTankGuid()` resolves to you on its own. Do not flag anyone.
+2. **Check the raid-frame flags.** They are role assignments, they
+   persist in the database, and a stale one silently hands the raid to
+   the wrong body. This file used to say "do not flag anyone" — that was
+   wrong, and it cost a Black Temple night. See "Raid flags are
+   assignments" below, and ADR `0003`.
+
+### Raid flags are assignments — check them before a serious night
+
+Two flags in `group_member.memberFlags` drive module behaviour, they
+survive logout and server restart, and nothing in the game announces
+them:
+
+| Flag | Value | What the module does with it |
+|---|---|---|
+| `MEMBER_FLAG_ASSISTANT` | `1` | orders **every** per-role index — assist tank 0/1, assist heal 0, assist ranged. Assistants sort ahead of everyone else; group join order only breaks ties |
+| `MEMBER_FLAG_MAINTANK` | `2` | `GetMainTankGuid()` returns this body **without checking `IsTank()`** |
+| `MEMBER_FLAG_MAINASSIST` | `4` | nothing. The module never reads it |
+
+The trap is the second one. `GetMainTankGuid()` (`PlayerbotAI.cpp:2378`)
+looks for the flag first and only falls back to "first alive `IsTank()`
+body" if nobody carries it. So a flag left on a rule-1-converted plate
+bot makes *that* bot the main tank — no taunt, no tank strategies, and
+in `Ararin`'s case 476 defence and crittable — while your actual tank is
+not main tank at all. Everything keyed on `IsMainTank()` follows it,
+including scripted raid assignments and every hunter Misdirection in the
+raid.
+
+Read them out of the database; the raid frames will not tell you:
+
+```sql
+SELECT c.name, c.class, c.online, gm.memberFlags, gm.subgroup
+  FROM acore_characters.group_member gm
+  JOIN acore_characters.characters c ON c.guid = gm.memberGuid
+ ORDER BY gm.subgroup, gm.memberGuid;
+```
+
+**Set them deliberately.** When a bot main-tanks, put the main-tank flag
+on that bot rather than trusting the fallback — join order changes every
+time a body is summoned. Promote to assistant the bodies you actually
+want as assist tank 0/1 and assist heal 0.
+
+The same query is also your roster check. Run on 2026-08-15 it turned up
+`Netohje` and `Gerina` in the raid — neither is in `roster.conf`.
+
+#### Who can do what, and taking lead back from a bot
+
+| Action | Needs |
+|---|---|
+| Set/clear raid target icons | leader **or** assistant (`GroupHandler.cpp:629`) |
+| Set main tank / main assist | leader **or** assistant (`:727`) |
+| Promote someone to assistant | **leader only** (`:713`) |
+
+A bot holding raid lead is normal, not a fault: `KeepAltsInGroup`
+restores whatever group existed, and a group formed while you played
+`Bullwark` keeps him as leader forever after. Take it back:
+
+```
+/w Bullwark give leader
+```
+
+`GiveLeaderAction` needs an active player master and the bot to be
+holding lead — both true in that situation. GM fallback if it ever
+misbehaves: `.group leader <yourname>`.
+
+Note that being **leader does not make you an assistant** — the flags
+are independent. That matters more than it sounds: some encounter code
+picks its body by assistant flag alone (see the Zerevor tank, below).
 
 ### For a 25-man night
 
@@ -56,6 +121,102 @@ convert it before it raids — once, ever:
 
 Skipping this is not subtle: it will taunt bosses off you on cooldown all
 night. See `CLAUDE.md` rule 1.
+
+### Playing someone other than Bullwark
+
+**Auto-login is all-or-nothing.** The module runs a bare `SELECT name FROM
+characters WHERE account = <yours>` and adds the lot — there is no
+per-character exclusion. So whoever you pick, the other nine arrive, and
+`Bullwark` is one of them. He has never taken a `co` (verified on the box
+2026-08-14 — six of the ten carry overrides, he is not one), so as a bot
+he arrives a **full tank**: `IsTank()` true, `LoseAggroTrigger` on
+`taunt`, `tank assist` locked to the master's target.
+
+That makes the swap safe or unsafe depending purely on what you pick.
+
+| You play | What happens |
+|---|---|
+| **A DPS or healer** — Izri, Dijito, Ilyna, Anmine, Nathos, Krast, Tanke, Restofarian | **Fine, no preparation.** `Bullwark` main-tanks, which is what you want. Still exactly one `IsTank()` body, so the `+threat` cap works and `co -threat` stays forbidden. |
+| **Ararin**, or any plate body | **Rule 1, mirrored.** Two `IsTank()` bodies — you via the prot spec fallback, him via his tank strategies. He taunts the boss off you on cooldown all night. |
+
+One exception to "no preparation": **play a mage into Black Temple while
+carrying a raid-assistant flag and the Illidari Council script makes you
+its Zerevor tank**, silently, healer and all. That is a fine way to run
+the fight — see the Council section below — but it should be a choice.
+
+If you do want to tank on someone else, convert `Bullwark` once, ever,
+while he is in your group as a bot:
+
+```
+/w Bullwark co -tank,-tank assist,+dps,+dps assist
+```
+
+Safe to leave in place permanently — `co` only governs bot AI, so it does
+nothing on the nights you play him yourself, and `gear-pass.sh` already
+refuses to re-roll his spec, so there is no rule-2 collision to worry
+about. It is not applied by default precisely because leaving him
+unconverted is what makes the DPS swap free.
+
+> **`Bullwark` is the right bot tank, not `Netohje`.** `pool.conf` used
+> to nominate Netohje for bot-tanked nights; he is ilvl 115 blue and
+> fury-geared, i.e. crittable, and he costs a summon. Bullwark is
+> hand-itemized at 534 defence and arrives for free. See ADR `0002`.
+
+**Nobody advances the raid.** On any character, you lead. Every movement
+primitive is relative to the master — `stay` calls `StopMoving()` and
+clears CHASE and FOLLOW, `follow` releases it, `dps assist` only walks
+DPS into range once a target exists. No body scouts ahead, picks a
+route, or pulls the next pack unprompted. Playing a DPS hands `Bullwark`
+the boss; it does not hand him the instance.
+
+### Rechiw was never converted — do this before the next 25-man
+
+**Verified on the box 2026-08-14.** `Rechiw` (guid 826) has **zero** rows
+in `playerbots_db_store`, and his talents include Rune Tap (48982), Mark
+of Blood (49005) and Vampiric Blood (55233) — deep blood *tank* talents.
+With no override to modify them, `AiFactory` grants him the full tank
+strategy set from his spec on every login. He has been taunting bosses
+off you in every 25-man since he joined.
+
+**This does not affect 10-man nights.** `Rechiw` lives on account 83, not
+101, so he is not in the standing ten and does not auto-login. The only
+plate body in the standing ten is `Ararin`, and he is genuinely
+converted — a Karazhan night off auto-login is clean, with or without
+this fix.
+
+**The fix is gated on him being summoned.** `co` is whispered to a bot in
+your group, so it can only land on a 25-man night. There is no way to
+apply it from the console, and no DB-side shortcut worth trusting — the
+module writes the row from the *entire live strategy list*, so hand-
+inserting one means guessing what `AiFactory` would have built. Summon
+him, whisper, done.
+
+Fix it once, ever, the next time he is summoned:
+
+```
+/w Rechiw co -tank,-tank assist,+dps,+dps assist
+```
+
+Then confirm the row exists — the absence is the whole bug:
+
+```sql
+SELECT c.name, s.value FROM acore_playerbots.playerbots_db_store s
+  JOIN acore_characters.characters c ON c.guid = s.guid
+ WHERE s.`key` = 'co' AND c.name = 'Rechiw';
+```
+
+> **Why this hid for a day.** `roster.conf` recorded "Verified in
+> `playerbots_db_store` 2026-08-13: none carries `+tank` or `+tank
+> assist`." That query asks whether anyone *carries* the tank
+> strategies — and a bot with no rows at all answers "no" while running
+> them from spec. The check passed vacuously. **Absence of a `co` row is
+> not evidence of conversion; it is evidence of the opposite.** Always
+> assert the row is present, never that the string is missing.
+
+`Crumm` and `Ararin` are genuinely converted and need nothing. Of the 24
+raid bots, 21 carry a `co` row; the three that do not are `Rechiw`,
+`Tanke` and `Anmine` — and the latter two are a resto druid and a rogue,
+so they need no conversion.
 
 ### If the server was restarted
 
@@ -100,13 +261,49 @@ range. This ruins a line-of-sight pull. `+threat` does not hold them —
 `ThreatMultiplier` only zeroes actions that *have* a threat type, and
 walking into position is not one.
 
-The `pull` / `pull back` strategies would do the right thing, but
-`AiFactory` grants them to tank specs only — and with a human tank and
-three converted plate bots, **no body in the raid has them.**
+The `pull` / `pull back` strategies do the right thing. `AiFactory`
+grants them to tank specs only, which is why this file used to claim no
+body in the raid had them — **that was wrong.** Verified on the box
+2026-08-14: `Ararin`'s saved `co` list carries `+pull,+pull back`.
 
-Two ways round it. Easiest: **mark after the pull lands** — pull with
-your own shot, let the pack reach you, then skull. Otherwise hold them
-explicitly:
+That is rule 2 working in your favour for once. The conversion whisper
+took away `+tank` and `+tank assist`, but `Save()` wrote his *entire*
+strategy list — including the pull strategies `AiFactory` had already
+granted him while he was tank-specced. They are frozen in and they apply
+on every login. `Crumm` carries them too, for the same reason. `Rechiw`
+does not — he carries no override at all, which is a live fault; see
+"Rechiw was never converted" below.
+
+So `pull` in `/raid` is available today. Do not "fix" those entries out.
+
+**What `pull` actually looks like, and why the tank turns his back.**
+`pull` records **the bot's own position at the moment you type it** as
+`position["pull"]`, walks him into range of his pull action, and fires.
+For a warrior that action is `"shoot"` (`WarriorPullStrategy.h:15`) —
+`heroic throw` is checked first but is a level-80 ability, so at 70 he
+always falls through to the ranged slot. `Bullwark` carries a Windspear
+Longbow, so he pulls at bow range; **a warrior with an empty ranged slot
+cannot pull at all** (`CanDoPullAction` refuses; only paladins and
+druids are exempt from that check).
+
+Then `pull back` — a *separate* strategy — walks him back to the
+recorded spot, which is the "turns around and runs into the group"
+part. The pull ends when he is within follow range of it, or after 15
+seconds flat (`GetMaxPullTime()`).
+
+That is correct behaviour for trash: it drags the pack to the raid. It
+is a bad deal on a boss, because **your tank spends the return leg with
+his back turned** — no dodge, parry or block, and no threat generated.
+Three options, cheapest first: stand him where you want the fight and
+*then* type `pull`, since the return spot comes from his feet at that
+instant; or skip `pull` for boss pulls and open yourself, letting `tank
+assist` hand him the boss; or `/w Bullwark co -pull back`, which keeps
+the pull and drops the return — at the cost of writing him a `co` row
+he does not currently have (rule 2).
+
+If you would rather not use it, two ways round the marking problem.
+Easiest: **mark after the pull lands** — pull with your own shot, let the
+pack reach you, then skull. Otherwise hold them explicitly:
 
 ```
 stay            <- in /raid, before you pull
@@ -314,9 +511,108 @@ issue: below ~30% Mag may cast Blast Nova on a ~20s timer against the
 ~55s baseline — too fast for Mind Exhaustion to fade from clickers.
 Expect some late wipes; that is a module bug, not your setup.
 
-### There is no generic Misdirection
+### Black Temple — the Illidari Council
 
-`grep -ri misdirection` across the module hits only `src/Ai/Raid/SSC/`
-and `src/Ai/Raid/ZA/`. Hunters do not misdirect outside those two
-scripted instances, so **no bot assists your threat anywhere else.**
-Recorded because it is the obvious thing to assume and it is false.
+**The fight is fully scripted at this pin and takes no orders.** Eleven
+triggers and seven multipliers in `src/Ai/Raid/BT/`, wired at
+`BTStrategy.cpp:120-152`, applied automatically on entering map 564 by
+`ApplyInstanceStrategies()`. It assigns by **role**, and resolves each
+role itself:
+
+| Boss | Icon it sets | Role | Resolved by |
+|---|---|---|---|
+| Gathios | square | main tank | `IsMainTank()` |
+| Lady Malande | star | assist tank 0 | `IsAssistTankOfIndex(bot, 0, false)` |
+| Veras Darkshadow | circle | assist tank 1 | `IsAssistTankOfIndex(bot, 1, false)` |
+| Zerevor | triangle | a **mage** tank | `GetZerevorMageTank()` |
+| — | — | dedicated healer | `IsAssistHealOfIndex(bot, 0, true)` |
+
+All four share a health pool (`SPELL_EMPYREAL_BALANCE`), so kill order
+is meaningless — the whole fight is about who absorbs whose damage.
+
+**Setup, in order:**
+
+1. **Main-tank flag onto `Bullwark`.** If it is sitting on `Ararin` the
+   module's main tank is a converted, crittable DPS-strategy paladin.
+2. **Restore tank strategies on two plate bodies** — this fight only:
+   ```
+   /w Ararin co +tank,+tank assist,-dps,-dps assist
+   /w Crumm  co +tank,+tank assist,-dps,-dps assist
+   ```
+   `IsAssistTankOfIndex` gates on `IsTank()`, so a fully converted raid
+   supplies **zero** assist tanks and Malande and Veras go untanked.
+   Rule 1 cannot fire here — the encounter's own
+   `IllidariCouncilDisableTankActionsMultiplier` zeroes taunt, dark
+   command, hand of reckoning, righteous defense, challenging
+   shout/roar, growl, cleave, shockwave, D&D and blood boil for every
+   `IsTank()` bot in combat with Gathios, and zeroes `TankAssistAction`
+   once they have a victim. **Restore at the Council's door, not at the
+   instance entrance** — the suppression only applies once the bot is
+   actually on Gathios's threat list. **Revert both before Illidan.**
+   See ADR `0004`.
+3. **Promote both to assistant**, so they take index 0 and 1
+   deterministically instead of by join order.
+4. **Promote the healer you want as the Zerevor healer** — *not*
+   `Nathos`. Assist-heal-0 gets pinned to two fixed spots beside
+   Zerevor and will not move for anything else; you want your only
+   single-target tank healer free for `Bullwark`. `Olidina` or `Dehme`.
+5. **Decide who tanks Zerevor.** `GetZerevorMageTank()` returns the
+   first **raid-assistant** mage — bot or human, it does not check —
+   and only then falls back to the first bot mage. So if you are
+   playing a mage and carry an assistant flag, **you are the Zerevor
+   tank** whether or not anyone told you. Taking it is fine and is the
+   intended shape of the fight: Spellsteal his Dampen Magic, hold him
+   away from Malande, and **never Ice Block** (the module explicitly
+   disables Ice Block for its own mage tank — dropping threat sends him
+   into the raid). If you die, the role falls through to the first bot
+   mage, position, marking, healer and all.
+
+**Before every attempt, reset the marks.** Raid icons are group state and
+survive a wipe, and the script also sets each bot's own `rti` to
+square/star/circle/triangle. `DpsTargetValue::Calculate()` returns the
+RTI target first, gated only on alive + LOS + sight range — so walking
+back into the room hands every bot a live target and re-pulls the
+encounter instantly. In `/raid`:
+
+```
+rti skull
+```
+
+then target each Council member and `/run SetRaidTarget("target",0)`.
+You need leader or assistant for that macro to do anything at all.
+
+**Then pull:** mark Gathios skull and open on him. Expect ~5 seconds of
+DPS bots doing nothing (`IllidariCouncilWaitForDpsMultiplier` holds
+non-tank attacks while the tanks establish), and no DPS cooldowns or
+trinkets until Gathios drops under 90%.
+
+**The clock is the boss.** Veras schedules a **15-minute berserk**
+(`boss_illidari_council.cpp:543`): all four gain `SPELL_BERSERK` and
+Veras wipes his threat list in the same instant, landing on a healer.
+There is a yell attached — when you hear it the attempt is over. The
+pool is ~4.89M, which needs ~5,430 raid DPS. At `AutoGearScoreLimit =
+141` the raid does ~4,130. **Gear pass first; see ADR `0005`.**
+
+Known leak you cannot fix from chat: Gathios re-blesses a Council member
+with Blessing of Protection or Spell Warding every 15s, and only rogues,
+DPS warriors and DPS shamans know to switch off an immune target.
+Everything else keeps hitting it, and with a shared pool that damage is
+simply lost.
+
+### Misdirection: generic for the main tank, scripted in seven raids
+
+This file used to say there is no generic Misdirection and that "no bot
+assists your threat anywhere else". **That is wrong at this pin.**
+`GenericHunterStrategy.cpp:68` wires the `low tank threat` trigger to
+`misdirection on main tank`, so hunters misdirect anywhere, in any
+content, whenever tank threat runs low.
+
+The catch is who they misdirect to: `BuffOnMainTankAction` resolves its
+target through `FindMainTankPlayer::Check → IsMainTank()`, which follows
+`MEMBER_FLAG_MAINTANK`. A stale flag therefore feeds every hunter
+Misdirection in the raid to the wrong body, everywhere — one more
+reason to audit the flags.
+
+Scripted, instance-specific misdirection additionally exists in
+`src/Ai/Raid/` under `BT/`, `Gruul/`, `Hyjal/`, `Mag/`, `SSC/`, `TK/`
+and `ZA/` — not only SSC and ZA as previously recorded.

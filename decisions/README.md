@@ -5,6 +5,24 @@ This directory is for decisions made **from 2026-08-13 onward**.
 - `0001` — a standing ten on your own account, and a wider pool summoned
   by name. Records the 10-character client ceiling, the three gates that
   are routinely confused, and why SOAP cannot drive the bot commands.
+- `0002` — which character you log in as is a raid decision. Records that
+  rule 1 is symmetric (a DPS/healer swap is free, a plate swap is not),
+  that `Bullwark` carries no `co` and so bot-tanks unconverted, that
+  `Netohje` is retired as the bot-mode main tank, and that the raid does
+  have `pull` after all.
+- `0003` — raid-frame flags are role assignments. Records that
+  `GetMainTankGuid()` honours `MEMBER_FLAG_MAINTANK` without checking
+  `IsTank()`, that the assistant flag orders every per-role index, and
+  the audit query. **Reverses "do not flag anyone".**
+- `0004` — the Illidari Council needs three tank-strategy bodies. Records
+  the encounter's role table, that `IsAssistTankOfIndex` gates on
+  `IsTank()` so a rule-1-converted raid supplies no assist tanks, and that
+  the encounter script disables the taunt behaviour rule 1 exists to
+  prevent. A per-fight toggle, reverted before Illidan.
+- `0005` — Black Temple is gated on gear, not tuning. Records the
+  Council's 15-minute berserk, the ~4.89M shared pool, the measured
+  30–32% DPS shortfall, and the rule that no HP restore lands here until
+  the enrage is beaten.
 
 ## Where the history went
 
@@ -38,7 +56,7 @@ If you need the receipts, these are the ADRs that hold them:
 
 | Archive ADR | What it proves |
 |---|---|
-| `0013` (+ amendment) | `co` persists via `playerbots_db_store`; the bot-tank/human-tank taunt corollary; there is no generic Misdirection |
+| `0013` (+ amendment) | `co` persists via `playerbots_db_store`; the bot-tank/human-tank taunt corollary. **Its "there is no generic Misdirection" finding is false at this pin** — `GenericHunterStrategy.cpp:68` wires `low tank threat` to `misdirection on main tank`. Corrected 2026-08-15; see ADR `0003` |
 | `0014` | Why the human tanks, and what the nine dead Karazhan triggers actually cost |
 | `0007` | A respec never re-gears — `init=` rolls spec *then* gears |
 | `0008` | The tank defence floor is met by hand-picking items, not by tier |

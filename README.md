@@ -20,8 +20,8 @@ human tanks TBC raids for a raid of bots.
 | Rebuild the server from nothing | `docs/build.md` |
 | Create the container | `docs/host-create.md` |
 
-**If you read only one thing, read the five rules in `CLAUDE.md`.** Four
-of the five describe failures that are silent, persistent, and present as
+**If you read only one thing, read the six rules in `CLAUDE.md`.** Five
+of the six describe failures that are silent, persistent, and present as
 something other than what they are.
 
 ## Quick reference
