@@ -35,4 +35,4 @@ One detail that makes the human's part of this cheaper than it looks. `GetZerevo
 
 Alternatives: Leave the raid rule-1-converted and attempt the fight anyway — measured, and it is the wipe that prompted this. Convert nobody, permanently, so the Council works for free — that is rules 1 and 3 live on every other night of the year to buy one encounter. Flag two converted bodies as main tank / assistants without restoring their strategies — does nothing: `IsAssistTankOfIndex` checks `IsTank()` before it ever looks at flags, so the roles stay unfilled (and per ADR `0003`, a flag on a converted body is actively harmful for the main-tank slot). Patch `IsAssistTankOfIndex` to accept a DPS-strategy plate body, or teach the Council triggers to accept a human off-tank — the durable fix, and it belongs with the other two deferred module patches in `CLAUDE.md`'s open questions, to be costed at the next relink rather than paid for twice.
 
-Affected: docs/raid-night.md, CLAUDE.md, decisions/README.md
+Affected: docs/encounters/black-temple.md, docs/raid-night.md, CLAUDE.md, decisions/README.md

@@ -106,7 +106,7 @@ primitive is relative to the master. You always lead.
 > script zeroes every taunt action for `IsTank()` bots in combat with
 > Gathios, so the fault rule 1 exists to prevent cannot fire there.
 > Restore two plate bodies at the Council's door, revert before Illidan.
-> ADR `0004`, and the runbook section in `docs/raid-night.md`.
+> ADR `0004`, and `docs/encounters/black-temple.md`.
 
 ### 2. `co` writes a persistent, total override — and it is a trap
 
@@ -320,6 +320,7 @@ clear that bar.
 |---|---|
 | `docs/build.md` | Standing the server up from nothing |
 | `docs/raid-night.md` | Session runbook — start here to actually play |
+| `docs/encounters/` | Per-instance fight notes, one file per raid |
 | `scripts/roster.conf` | The 24 bots, committed so they can be re-summoned |
 | `scripts/pins.conf` | Core + module SHAs. The reproducibility artifact |
 | `scripts/gear-pass.sh` | Force the spec roll, then gear |

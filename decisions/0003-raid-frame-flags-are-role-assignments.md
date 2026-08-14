@@ -29,4 +29,4 @@ Setting flags deliberately also turns three previously uncontrollable assignment
 
 Alternatives: Clear every flag and keep relying on the fallback — attractive because it needs no upkeep, but it only works while exactly one `IsTank()` body exists, which ADR `0004` deliberately breaks for the Illidari Council, and it leaves the per-role indices at the mercy of join order. Set the flags in the client and trust memory — that is what produced the stale `MEMBER_FLAG_MAINTANK` on `Ararin` in the first place. Patch the module so `GetMainTankGuid()` validates the flagged body with `IsTank()` before returning it — the right fix upstream, and a genuine candidate for the local patch series in `CLAUDE.md`'s open questions, but it is a relink and it would not have helped the assistant-flag half of this at all.
 
-Affected: docs/raid-night.md, CLAUDE.md, decisions/README.md, scripts/roster.conf
+Affected: docs/raid-night.md, docs/encounters/, CLAUDE.md, decisions/README.md, scripts/roster.conf

@@ -142,7 +142,7 @@ That makes the swap safe or unsafe depending purely on what you pick.
 One exception to "no preparation": **play a mage into Black Temple while
 carrying a raid-assistant flag and the Illidari Council script makes you
 its Zerevor tank**, silently, healer and all. That is a fine way to run
-the fight — see the Council section below — but it should be a choice.
+the fight — see `encounters/black-temple.md` — but it should be a choice.
 
 If you do want to tank on someone else, convert `Bullwark` once, ever,
 while he is in your group as a bot:
@@ -471,133 +471,25 @@ or they come back running the old spec's strategies.
 
 ## Encounter notes
 
-### Karazhan's Chess event — skip it
+**These moved to `docs/encounters/`,** one file per instance, so they can
+be refined per fight without this runbook growing past the point anyone
+reads it.
 
-mod-playerbots has no chess code whatsoever, and the encounter is built
-around players charming pieces: uncharmed friendly pieces never move and
-cast at half the enemy rate, so "let the AI play it" loses by design, not
-by luck. Open the Gamesman's exit door with `.gobject activate` and move
-on. `.instance setbossstate` does not work here.
+| Instance | File | The short version |
+|---|---|---|
+| Karazhan | `encounters/karazhan.md` | Skip the Chess event. How much of the instance is automated depends on whether a bot tanks |
+| Zul'Aman | `encounters/zulaman.md` | Every scripted pull is a hunter's Misdirection. Bring one |
+| Magtheridon | `encounters/magtheridon.md` | Cube phase is attemptable at 25 and will be messy |
+| Black Temple | `encounters/black-temple.md` | The Illidari Council needs three tank-strategy bodies and a mage. 15-minute berserk |
 
-### The mechanics you now execute by hand
-
-Nine triggers across Karazhan gate on `IsTank(bot)` / `IsMainTank(bot)`,
-evaluated inside each *bot's* own AI. With a human tanking they are dead
-code. Most are tank positioning and target marking — which a human tank
-does natively and enjoys doing. **Two are genuinely more work:**
-
-- **Netherspite's beam rotation.** Yours to call.
-- **Prince Malchezaar's Infernals.** `disperse` is your friend.
-
-This is the accepted price of the human tanking. It is not a bug and it
-is not fixable without patching the module.
-
-### Zul'Aman — the hunter is load-bearing
-
-All six ZA "pulling boss" triggers open with
-`if (bot->getClass() != CLASS_HUNTER) return false;`. Every pull in the
-instance is a hunter's Misdirection. Bring `Fehmos` or `Ilyna`.
-
-Note also that ZA's Nalorakk and Halazzi branch on
-`IsAssistTankOfIndex(bot, 0, true)` — bot self-checks, so those swap
-mechanics are hand-executed too, same as Karazhan's.
-
-### Magtheridon's cube phase
-
-Needs five bodies clicking Manticron Cubes on a timer, with the strategy
-auto-assigning one non-Warlock ranged per cube and reassigning on death.
-Attemptable at 25 bodies, but expect it to be the messy part. Known
-issue: below ~30% Mag may cast Blast Nova on a ~20s timer against the
-~55s baseline — too fast for Mind Exhaustion to fade from clickers.
-Expect some late wipes; that is a module bug, not your setup.
-
-### Black Temple — the Illidari Council
-
-**The fight is fully scripted at this pin and takes no orders.** Eleven
-triggers and seven multipliers in `src/Ai/Raid/BT/`, wired at
-`BTStrategy.cpp:120-152`, applied automatically on entering map 564 by
-`ApplyInstanceStrategies()`. It assigns by **role**, and resolves each
-role itself:
-
-| Boss | Icon it sets | Role | Resolved by |
-|---|---|---|---|
-| Gathios | square | main tank | `IsMainTank()` |
-| Lady Malande | star | assist tank 0 | `IsAssistTankOfIndex(bot, 0, false)` |
-| Veras Darkshadow | circle | assist tank 1 | `IsAssistTankOfIndex(bot, 1, false)` |
-| Zerevor | triangle | a **mage** tank | `GetZerevorMageTank()` |
-| — | — | dedicated healer | `IsAssistHealOfIndex(bot, 0, true)` |
-
-All four share a health pool (`SPELL_EMPYREAL_BALANCE`), so kill order
-is meaningless — the whole fight is about who absorbs whose damage.
-
-**Setup, in order:**
-
-1. **Main-tank flag onto `Bullwark`.** If it is sitting on `Ararin` the
-   module's main tank is a converted, crittable DPS-strategy paladin.
-2. **Restore tank strategies on two plate bodies** — this fight only:
-   ```
-   /w Ararin co +tank,+tank assist,-dps,-dps assist
-   /w Crumm  co +tank,+tank assist,-dps,-dps assist
-   ```
-   `IsAssistTankOfIndex` gates on `IsTank()`, so a fully converted raid
-   supplies **zero** assist tanks and Malande and Veras go untanked.
-   Rule 1 cannot fire here — the encounter's own
-   `IllidariCouncilDisableTankActionsMultiplier` zeroes taunt, dark
-   command, hand of reckoning, righteous defense, challenging
-   shout/roar, growl, cleave, shockwave, D&D and blood boil for every
-   `IsTank()` bot in combat with Gathios, and zeroes `TankAssistAction`
-   once they have a victim. **Restore at the Council's door, not at the
-   instance entrance** — the suppression only applies once the bot is
-   actually on Gathios's threat list. **Revert both before Illidan.**
-   See ADR `0004`.
-3. **Promote both to assistant**, so they take index 0 and 1
-   deterministically instead of by join order.
-4. **Promote the healer you want as the Zerevor healer** — *not*
-   `Nathos`. Assist-heal-0 gets pinned to two fixed spots beside
-   Zerevor and will not move for anything else; you want your only
-   single-target tank healer free for `Bullwark`. `Olidina` or `Dehme`.
-5. **Decide who tanks Zerevor.** `GetZerevorMageTank()` returns the
-   first **raid-assistant** mage — bot or human, it does not check —
-   and only then falls back to the first bot mage. So if you are
-   playing a mage and carry an assistant flag, **you are the Zerevor
-   tank** whether or not anyone told you. Taking it is fine and is the
-   intended shape of the fight: Spellsteal his Dampen Magic, hold him
-   away from Malande, and **never Ice Block** (the module explicitly
-   disables Ice Block for its own mage tank — dropping threat sends him
-   into the raid). If you die, the role falls through to the first bot
-   mage, position, marking, healer and all.
-
-**Before every attempt, reset the marks.** Raid icons are group state and
-survive a wipe, and the script also sets each bot's own `rti` to
-square/star/circle/triangle. `DpsTargetValue::Calculate()` returns the
-RTI target first, gated only on alive + LOS + sight range — so walking
-back into the room hands every bot a live target and re-pulls the
-encounter instantly. In `/raid`:
-
-```
-rti skull
-```
-
-then target each Council member and `/run SetRaidTarget("target",0)`.
-You need leader or assistant for that macro to do anything at all.
-
-**Then pull:** mark Gathios skull and open on him. Expect ~5 seconds of
-DPS bots doing nothing (`IllidariCouncilWaitForDpsMultiplier` holds
-non-tank attacks while the tanks establish), and no DPS cooldowns or
-trinkets until Gathios drops under 90%.
-
-**The clock is the boss.** Veras schedules a **15-minute berserk**
-(`boss_illidari_council.cpp:543`): all four gain `SPELL_BERSERK` and
-Veras wipes his threat list in the same instant, landing on a healer.
-There is a yell attached — when you hear it the attempt is over. The
-pool is ~4.89M, which needs ~5,430 raid DPS. At `AutoGearScoreLimit =
-141` the raid does ~4,130. **Gear pass first; see ADR `0005`.**
-
-Known leak you cannot fix from chat: Gathios re-blesses a Council member
-with Blessing of Protection or Spell Warding every 15s, and only rogues,
-DPS warriors and DPS shamans know to switch off an immune target.
-Everything else keeps hitting it, and with a shared pool that damage is
-simply lost.
+**The rule that spans all of them:** raid scripts gate their tank
+mechanics on `IsTank(bot)` / `IsMainTank(bot)`, evaluated inside each
+*bot's* own AI. So who tanks decides whether the module's script for a
+fight runs at all — human tank means those triggers are dead code and
+the mechanics are yours; bot tank with the main-tank flag set means they
+fire. Neither is better everywhere. `encounters/README.md` has the
+detail, and it is also the place that says what belongs in an encounter
+file versus an ADR.
 
 ### Misdirection: generic for the main tank, scripted in seven raids
 

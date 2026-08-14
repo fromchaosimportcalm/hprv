@@ -16,6 +16,7 @@ human tanks TBC raids for a raid of bots.
 |---|---|
 | Understand the project and its non-obvious rules | `CLAUDE.md` |
 | Play tonight | `docs/raid-night.md` |
+| Fight a specific boss | `docs/encounters/` |
 | Set up the 40-character pool | `docs/pool.md` |
 | Rebuild the server from nothing | `docs/build.md` |
 | Create the container | `docs/host-create.md` |
@@ -57,6 +58,7 @@ docs/
   pool.md              the 40-character pool: design, setup, spec switching
   host-create.md       host-side LXC creation
   raid-night.md        session runbook
+  encounters/          per-instance fight notes, one file per raid
 scripts/
   phase-*.sh           idempotent build/setup scripts
   deploy.sh            push scripts to /opt/hprv/scripts on the box
