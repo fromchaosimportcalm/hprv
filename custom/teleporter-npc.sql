@@ -93,12 +93,16 @@ INSERT INTO `acore_world`.`gossip_menu_option`
    `OptionType`, `OptionNpcFlag`, `ActionMenuID`, `ActionPoiID`,
    `BoxCoded`, `BoxMoney`, `BoxText`, `BoxBroadcastTextID`, `VerifiedBuild`)
 VALUES
-  (@MENU, 0, 2, 'Shattrath City',       0, 1, 1, 0, 0, 0, 0, '', 0, 0),
-  (@MENU, 1, 2, 'Karazhan',             0, 1, 1, 0, 0, 0, 0, '', 0, 0),
-  (@MENU, 2, 2, 'Zul''Aman',            0, 1, 1, 0, 0, 0, 0, '', 0, 0),
-  (@MENU, 3, 2, 'Gruul''s Lair',        0, 1, 1, 0, 0, 0, 0, '', 0, 0),
-  (@MENU, 4, 2, 'Magtheridon''s Lair',  0, 1, 1, 0, 0, 0, 0, '', 0, 0),
-  (@MENU, 5, 2, 'Black Temple',         0, 1, 1, 0, 0, 0, 0, '', 0, 0);
+  (@MENU, 0, 2, 'Shattrath City',        0, 1, 1, 0, 0, 0, 0, '', 0, 0),
+  (@MENU, 1, 2, 'Karazhan',              0, 1, 1, 0, 0, 0, 0, '', 0, 0),
+  (@MENU, 2, 2, 'Gruul''s Lair',         0, 1, 1, 0, 0, 0, 0, '', 0, 0),
+  (@MENU, 3, 2, 'Magtheridon''s Lair',   0, 1, 1, 0, 0, 0, 0, '', 0, 0),
+  (@MENU, 4, 2, 'Serpentshrine Cavern',  0, 1, 1, 0, 0, 0, 0, '', 0, 0),
+  (@MENU, 5, 2, 'Tempest Keep: The Eye', 0, 1, 1, 0, 0, 0, 0, '', 0, 0),
+  (@MENU, 6, 2, 'Battle for Mount Hyjal', 0, 1, 1, 0, 0, 0, 0, '', 0, 0),
+  (@MENU, 7, 2, 'Black Temple',          0, 1, 1, 0, 0, 0, 0, '', 0, 0),
+  (@MENU, 8, 2, 'Zul''Aman',             0, 1, 1, 0, 0, 0, 0, '', 0, 0),
+  (@MENU, 9, 2, 'Sunwell Plateau',       0, 1, 1, 0, 0, 0, 0, '', 0, 0);
 
 -- ---------------------------------------------------------------------
 -- SmartAI. Each option is a linked pair:
@@ -110,7 +114,10 @@ VALUES
 -- real Players. Anyone on another map is left behind; with no group it
 -- falls back to just the clicker. The destination lives in
 -- target_x/y/z/o. Coordinates are the stock `game_tele` rows (.tele
--- names in the comments), read off the box 2026-09-25.
+-- names in the comments), read off the box 2026-09-25; SSC, The Eye,
+-- Hyjal and Sunwell added 2026-09-26. Order: Shattrath, then the raids
+-- in progression order. Reordering renumbers every option, so it needs the
+-- NPC to respawn (a restart) or the live copy teleports to the old slots.
 -- ---------------------------------------------------------------------
 
 DELETE FROM `acore_world`.`smart_scripts` WHERE `entryorguid` = @ENTRY AND `source_type` = 0;
@@ -123,24 +130,36 @@ INSERT INTO `acore_world`.`smart_scripts`
    `target_type`, `target_param1`, `target_param2`, `target_param3`, `target_param4`,
    `target_x`, `target_y`, `target_z`, `target_o`, `comment`)
 VALUES
-  -- 0: Shattrath (.tele Shattrath)
+  -- 0: Shattrath City (.tele Shattrath)
   (@ENTRY, 0,  0,  1, 62, 0, 100, 0, @MENU, 0, 0, 0, 0, 0, 72,   0, 0, 0, 0, 0, 0, 7, 0, 0, 0, 0,     0,        0,        0,       0,       'Porter - Gossip 0 - Close Gossip'),
-  (@ENTRY, 0,  1,  0, 61, 0, 100, 0, 0,     0, 0, 0, 0, 0, 62, 530, 0, 0, 0, 0, 0, 16, 0, 0, 0, 0, -1838.16,  5301.79,  -12.428,  5.9517,  'Porter - Linked - Teleport Shattrath'),
+  (@ENTRY, 0,  1,  0, 61, 0, 100, 0, 0,     0, 0, 0, 0, 0, 62, 530, 0, 0, 0, 0, 0, 16, 0, 0, 0, 0, -1838.16, 5301.79, -12.428, 5.9517, 'Porter - Linked - Teleport Shattrath City'),
   -- 1: Karazhan (.tele Karazhan)
   (@ENTRY, 0,  2,  3, 62, 0, 100, 0, @MENU, 1, 0, 0, 0, 0, 72,   0, 0, 0, 0, 0, 0, 7, 0, 0, 0, 0,     0,        0,        0,       0,       'Porter - Gossip 1 - Close Gossip'),
-  (@ENTRY, 0,  3,  0, 61, 0, 100, 0, 0,     0, 0, 0, 0, 0, 62,   0, 0, 0, 0, 0, 0, 16, 0, 0, 0, 0, -11118.9, -2010.33,   47.0819, 0.649895, 'Porter - Linked - Teleport Karazhan'),
-  -- 2: Zul'Aman (.tele ZulAman)
+  (@ENTRY, 0,  3,  0, 61, 0, 100, 0, 0,     0, 0, 0, 0, 0, 62,   0, 0, 0, 0, 0, 0, 16, 0, 0, 0, 0, -11118.9, -2010.33, 47.0819, 0.649895, 'Porter - Linked - Teleport Karazhan'),
+  -- 2: Gruul's Lair (.tele GruulsLair)
   (@ENTRY, 0,  4,  5, 62, 0, 100, 0, @MENU, 2, 0, 0, 0, 0, 72,   0, 0, 0, 0, 0, 0, 7, 0, 0, 0, 0,     0,        0,        0,       0,       'Porter - Gossip 2 - Close Gossip'),
-  (@ENTRY, 0,  5,  0, 61, 0, 100, 0, 0,     0, 0, 0, 0, 0, 62, 530, 0, 0, 0, 0, 0, 16, 0, 0, 0, 0,  6851.78, -7972.57,  179.242,  4.64691, 'Porter - Linked - Teleport Zul''Aman'),
-  -- 3: Gruul's Lair (.tele GruulsLair)
+  (@ENTRY, 0,  5,  0, 61, 0, 100, 0, 0,     0, 0, 0, 0, 0, 62, 530, 0, 0, 0, 0, 0, 16, 0, 0, 0, 0, 3530.06, 5104.08, 3.50861, 5.51117, 'Porter - Linked - Teleport Gruul''s Lair'),
+  -- 3: Magtheridon's Lair (.tele MagtheridonsLair)
   (@ENTRY, 0,  6,  7, 62, 0, 100, 0, @MENU, 3, 0, 0, 0, 0, 72,   0, 0, 0, 0, 0, 0, 7, 0, 0, 0, 0,     0,        0,        0,       0,       'Porter - Gossip 3 - Close Gossip'),
-  (@ENTRY, 0,  7,  0, 61, 0, 100, 0, 0,     0, 0, 0, 0, 0, 62, 530, 0, 0, 0, 0, 0, 16, 0, 0, 0, 0,  3530.06,  5104.08,    3.50861, 5.51117, 'Porter - Linked - Teleport Gruul''s Lair'),
-  -- 4: Magtheridon's Lair (.tele MagtheridonsLair)
+  (@ENTRY, 0,  7,  0, 61, 0, 100, 0, 0,     0, 0, 0, 0, 0, 62, 530, 0, 0, 0, 0, 0, 16, 0, 0, 0, 0, -312.7, 3087.26, -116.52, 5.19026, 'Porter - Linked - Teleport Magtheridon''s Lair'),
+  -- 4: Serpentshrine Cavern (.tele SerpentshrineCavern)
   (@ENTRY, 0,  8,  9, 62, 0, 100, 0, @MENU, 4, 0, 0, 0, 0, 72,   0, 0, 0, 0, 0, 0, 7, 0, 0, 0, 0,     0,        0,        0,       0,       'Porter - Gossip 4 - Close Gossip'),
-  (@ENTRY, 0,  9,  0, 61, 0, 100, 0, 0,     0, 0, 0, 0, 0, 62, 530, 0, 0, 0, 0, 0, 16, 0, 0, 0, 0,  -312.7,    3087.26, -116.52,   5.19026, 'Porter - Linked - Teleport Magtheridon''s Lair'),
-  -- 5: Black Temple (.tele BlackTemple)
+  (@ENTRY, 0,  9,  0, 61, 0, 100, 0, 0,     0, 0, 0, 0, 0, 62, 530, 0, 0, 0, 0, 0, 16, 0, 0, 0, 0, 820.025, 6864.93, -66.7556, 6.28127, 'Porter - Linked - Teleport Serpentshrine Cavern'),
+  -- 5: Tempest Keep: The Eye (.tele TheEye)
   (@ENTRY, 0, 10, 11, 62, 0, 100, 0, @MENU, 5, 0, 0, 0, 0, 72,   0, 0, 0, 0, 0, 0, 7, 0, 0, 0, 0,     0,        0,        0,       0,       'Porter - Gossip 5 - Close Gossip'),
-  (@ENTRY, 0, 11,  0, 61, 0, 100, 0, 0,     0, 0, 0, 0, 0, 62, 530, 0, 0, 0, 0, 0, 16, 0, 0, 0, 0, -3649.92,   317.469,  35.2827, 2.94285, 'Porter - Linked - Teleport Black Temple');
+  (@ENTRY, 0, 11,  0, 61, 0, 100, 0, 0,     0, 0, 0, 0, 0, 62, 530, 0, 0, 0, 0, 0, 16, 0, 0, 0, 0, 3088.49, 1381.57, 184.863, 4.61973, 'Porter - Linked - Teleport Tempest Keep: The Eye'),
+  -- 6: Battle for Mount Hyjal (.tele HyjalSummit)
+  (@ENTRY, 0, 12, 13, 62, 0, 100, 0, @MENU, 6, 0, 0, 0, 0, 72,   0, 0, 0, 0, 0, 0, 7, 0, 0, 0, 0,     0,        0,        0,       0,       'Porter - Gossip 6 - Close Gossip'),
+  (@ENTRY, 0, 13,  0, 61, 0, 100, 0, 0,     0, 0, 0, 0, 0, 62,   1, 0, 0, 0, 0, 0, 16, 0, 0, 0, 0, -8177.89, -4181.23, -167.552, 0.913338, 'Porter - Linked - Teleport Battle for Mount Hyjal'),
+  -- 7: Black Temple (.tele BlackTemple)
+  (@ENTRY, 0, 14, 15, 62, 0, 100, 0, @MENU, 7, 0, 0, 0, 0, 72,   0, 0, 0, 0, 0, 0, 7, 0, 0, 0, 0,     0,        0,        0,       0,       'Porter - Gossip 7 - Close Gossip'),
+  (@ENTRY, 0, 15,  0, 61, 0, 100, 0, 0,     0, 0, 0, 0, 0, 62, 530, 0, 0, 0, 0, 0, 16, 0, 0, 0, 0, -3649.92, 317.469, 35.2827, 2.94285, 'Porter - Linked - Teleport Black Temple'),
+  -- 8: Zul'Aman (.tele ZulAman)
+  (@ENTRY, 0, 16, 17, 62, 0, 100, 0, @MENU, 8, 0, 0, 0, 0, 72,   0, 0, 0, 0, 0, 0, 7, 0, 0, 0, 0,     0,        0,        0,       0,       'Porter - Gossip 8 - Close Gossip'),
+  (@ENTRY, 0, 17,  0, 61, 0, 100, 0, 0,     0, 0, 0, 0, 0, 62, 530, 0, 0, 0, 0, 0, 16, 0, 0, 0, 0, 6851.78, -7972.57, 179.242, 4.64691, 'Porter - Linked - Teleport Zul''Aman'),
+  -- 9: Sunwell Plateau (.tele SunwellPlateau)
+  (@ENTRY, 0, 18, 19, 62, 0, 100, 0, @MENU, 9, 0, 0, 0, 0, 72,   0, 0, 0, 0, 0, 0, 7, 0, 0, 0, 0,     0,        0,        0,       0,       'Porter - Gossip 9 - Close Gossip'),
+  (@ENTRY, 0, 19,  0, 61, 0, 100, 0, 0,     0, 0, 0, 0, 0, 62, 530, 0, 0, 0, 0, 0, 16, 0, 0, 0, 0, 12574.1, -6774.81, 15.0904, 3.13788, 'Porter - Linked - Teleport Sunwell Plateau');
 
 -- ---------------------------------------------------------------------
 -- SPAWN — Orgrimmar, Valley of Strength (map 1)

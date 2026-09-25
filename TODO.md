@@ -21,7 +21,7 @@ Measured on the box 2026-09-26 unless marked otherwise.
 | 1 | Roster: 10 + 15 by class, rest on the bench | do | **Done 2026-09-26** (Crumm's damage deferred) |
 | 2 | Gear each group at its own tier | do | **Urgent.** The standing ten are half naked |
 | 4 | Riding maxed at 70 | do | **Already done.** Two cosmetic fixes |
-| 5 | Professions for the ten | plan | Decided: Inscription in, secondaries maxed |
+| 5 | Professions for the ten | plan | **Bullwark done 2026-09-26.** The other nine are still a plan |
 | 6 | Make Orgrimmar feel busier | plan | Ranked options below |
 | 7 | Level-80 holiday content | plan | **Brewfest is live now** |
 
@@ -309,6 +309,14 @@ yourself flasks.
    after item 2.
 2. Bullwark already has **Engineering 300/375**. He only has two slots,
    so Engineering + Blacksmithing fills him.
+
+**Bullwark: done 2026-09-26** with `scripts/max-professions.sql`.
+Blacksmithing (Armorsmith, 115 trainer recipes), Engineering (Goblin, 107),
+Cooking (12), First Aid (12) and Fishing are all 375/375, with no Grand
+Master anywhere. Herbalism 1/75 was dropped to stay within
+`MaxPrimaryTradeSkill = 2`. 215 → 408 spells. Backup at
+`pre-prof-bullwark-20260925-170942.sql.gz`. The script is generic by
+name, so the other nine reuse it once risk 1 below is checked.
 
 **Mechanism: SQL, not `.learn all recipes`.** The GM command also teaches
 vendor and drop recipes, and you asked for trainer-learnable only. With

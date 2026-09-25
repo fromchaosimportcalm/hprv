@@ -7,7 +7,7 @@ on the box. Every file is idempotent.
 
 | Entry | NPC | What it does | File |
 |---|---|---|---|
-| 9100000 | **Porter Nozdrel** | Teleports you **and your whole party/raid** to Shattrath, Karazhan, Zul'Aman, Gruul's Lair, Magtheridon's Lair or Black Temple | `teleporter-npc.sql` |
+| 9100000 | **Porter Nozdrel** | Teleports you **and your whole party/raid** to Shattrath, then in progression order: Karazhan, Gruul's Lair, Magtheridon's Lair, Serpentshrine Cavern, Tempest Keep: The Eye, Mount Hyjal, Black Temple, Zul'Aman, Sunwell Plateau (last four added 2026-09-26) | `teleporter-npc.sql` |
 | 9100001 | **Almari Stonebrand** | Tier 4 set pieces, every class, free (85) | `tier-vendors.sql` |
 | 9100002 | **Veshan Coilhand** | Tier 5 set pieces, free (85) | `tier-vendors.sql` |
 | 9100003 | **Oriel Duskmantle** | Tier 6 set pieces incl. Sunwell wrist/waist/feet, free (136) | `tier-vendors.sql` |
@@ -46,7 +46,12 @@ bring her back.
   member **on the same map as you**, at any distance. Bots are real
   `Player`s, so they come too. Anyone on another map is left behind —
   summon them first. With no group it moves just you.
-- Coordinates are the stock `game_tele` rows (the `.tele` names).
+- Coordinates are the stock `game_tele` rows (the `.tele` names). Hyjal
+  lands at `HyjalSummit`, inside the Caverns of Time by the raid portal.
+- **Adding or reordering destinations needs a restart.** A new option
+  shows in the menu straight away, but the live NPC keeps its old SmartAI
+  copy, so after a reorder she teleports to the *old* slot numbers until
+  she respawns.
 
 ## Vendor details
 
