@@ -24,6 +24,7 @@ Measured on the box 2026-09-26 unless marked otherwise.
 | 5 | Professions for the ten | plan | **Bullwark done 2026-09-26.** The other nine are still a plan |
 | 6 | Make Orgrimmar feel busier | plan | Ranked options below |
 | 7 | Level-80 holiday content | plan | **Brewfest is live now** |
+| 8 | Transmog NPC (Thunderfury!) | do | Needs a rebuild. Bundle it with the planned one |
 
 ---
 
@@ -422,3 +423,48 @@ Options:
       Coren, and whether anyone already carries holiday-boss loot
 - [ ] If option 2 is wanted later, do the Horseman first. His
       TBC-to-WotLK diff is the best documented
+
+---
+
+## 8. Transmog NPC: the Thunderfury item
+
+**Why:** Clinton wants Bullwark to look like he's wielding Thunderfury,
+Blessed Blade of the Windseeker. It took weeks to earn in the original
+game, and it's still in his bags (entry 19019, ilvl 80).
+
+**State:** no transmog on the server. The only compiled module is
+`mod-playerbots`, and 3.3.5a has no native transmog (added in 4.3).
+
+**It can't be SQL-only like the Porter.** Changing an equipped item's
+appearance while keeping its stats is new server behaviour. SmartAI has
+no action for it, so it needs a C++ module.
+
+**Plan: [`mod-transmog`](https://github.com/azerothcore/mod-transmog)**,
+the standard AzerothCore module. It's a gossip NPC and works with the
+**stock 3.3.5a client**, so the stock-client guardrail holds.
+
+- [ ] **Bundle it into the planned rebuild.** `CLAUDE.md` open questions
+      already plan one CMake re-run and relink window for `Release` +
+      `mod-multibot-bridge`. Add transmog to the same one, so you pay for
+      one ~7.4 GB link, not two
+- [ ] **Check it builds against the pinned playerbots fork first.** It's
+      often used alongside playerbots, but the core is pinned
+      (`scripts/pins.conf`). Clone the module at a compatible commit,
+      then pin it in `pins.conf` like the others
+- [ ] Apply the module's SQL (its NPC and tables). Keep its NPC's entry and
+      spawn inside the 9100000–9100099 custom range if the module allows it, and
+      stand it with the Porter and the vendors in the Valley of Strength
+- [ ] **Config for a single-player server:** make transmog free, and
+      allow any appearance rather than only collected ones.
+      **Legendary appearances must be allowed**, because Thunderfury is
+      quality 5. Check the module's legendary setting explicitly
+- [ ] **The Thunderfury check, done 2026-09-26:** Thunderfury (19019) and
+      Bullwark's main hand King's Defender (28749) are both class 2,
+      subclass 7 (sword), inventory type 13 (one-hand). So it's valid
+      even under the strictest same-type rules. Only the quality differs
+- [ ] After the rebuild, prove it end to end: transmog King's Defender to
+      Thunderfury, relog, and check the look persists. Then record it in
+      `docs/custom-npcs.md`
+- [ ] Don't delete Thunderfury from his bags. The module may need the
+      source item kept, depending on its config
+
