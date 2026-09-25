@@ -7,10 +7,18 @@ Professions (5) go after gear, because a gear pass may reset them.
 
 Measured on the box 2026-09-26 unless marked otherwise.
 
+> **Start here next session: item 2 (gear).** Items 3 and 1 are done.
+> First step: check whether `hprv-spec.sh` can pass a gearscore cap
+> (`init=168` for the ten, `init=183` for the 15). `gear-pass.sh`'s slot
+> passes are disabled. Then draft the passes for review, with
+> Bullwark's defence (`docs/bullwark-gear.md`) and the Crumm and Ararin
+> re-conversions as the closing steps. Nothing on the box is mid-change:
+> the server is up, and the ten auto-login as normal.
+
 | # | Item | Kind | State |
 |---|---|---|---|
-| 3 | Level cap past 70 | do | **Done 2026-09-26**, pending the DB check after the next save |
-| 1 | Roster: 10 + 15 by class, rest on the bench | do | **Swap done.** Crumm's conversion and the doc updates are left |
+| 3 | Level cap past 70 | do | **Done and verified 2026-09-26** |
+| 1 | Roster: 10 + 15 by class, rest on the bench | do | **Done 2026-09-26** (Crumm's damage deferred) |
 | 2 | Gear each group at its own tier | do | **Urgent.** The standing ten are half naked |
 | 4 | Riding maxed at 70 | do | **Already done.** Two cosmetic fixes |
 | 5 | Professions for the ten | plan | Decided: Inscription in, secondaries maxed |
@@ -89,7 +97,7 @@ touches them. They are probably leftovers from before the pool migration.
 - [x] Valuaan and Byninma teleported, and both landed in Shattrath
       (`Playerbots.log`). No bot has been teleported to map 571 since the
       restart
-- [ ] DB confirmation after the next character save (15 min interval)
+- [x] DB confirmed 2026-09-26 16:46: Byninma in Shattrath, Valuaan in Terokkar. **0** type-1 characters on map 571 or above 70
 
 ---
 
@@ -187,14 +195,28 @@ they'll level themselves the first time they're summoned.
       in 23 s. Account 101 is now Bullwark, Nathos, Ilyna, Anmine, Dijito,
       Crumm, Krast, Izri, Celerina and Restofarian. Ararin is on 93 and
       Tanke on 99
-- [ ] In game: `/invite Crumm`, `/invite Celerina`, then
-      `/w Crumm co -tank,-tank assist,+dps,+dps assist`, and I assert the row exists
+- [x] In game: invites done. **Crumm converted and verified** with the
+      corrected DK pair, `co -blood,+frost,+frost aoe` + `nc -tank assist,+dps assist`.
+      Neither row holds a TANK-typed strategy. The original `co -tank,…`
+      line would have removed nothing from a DK (see CLAUDE.md rule 1)
+- [ ] **Deferred ("we can deal with it"):** Crumm runs `frost` on blood
+      talents, so his damage is below a real frost DK's. Revisit during
+      item 2: keep blood talents with the frost rotation, or re-spec
 - [x] Account 101 swap: out before in, never above 10. Done by the script
-- [ ] Rewrite `roster.conf` as TEN / TWENTYFIVE blocks plus a BENCH list, and
-      update `pool.conf` and `docs/pool.md`
-- [ ] Convert Rechiw the next time he's summoned, even though he's on the bench. Audit
-      Netohje and Gerina with a bare `co`, as CLAUDE.md already asks
-- [ ] ADR: "one of each class in the standing ten"
+- [x] `roster.conf` rebuilt: slots 01–09 `GROUP=ten`, 10–24 `GROUP=25`,
+      plus `BENCH`. `roster-status.sh` leaves the ten out of the summon
+      line. `pool.conf` and `docs/pool.md` are updated. Deployed to
+      `/opt/hprv/scripts` and run clean on the box
+- [x] The conversion whisper is corrected everywhere (per-class `co` +
+      `nc`). `hprv-spec.sh` prints the right pair for the class. ADR 0002
+      is amended
+- [x] `gear-pass.sh` slot passes (`tank`, `offtank`, `a`, `b`, `c`) now
+      **refuse**, because their slot numbers predate the new `roster.conf`.
+      Item 2 replaces them
+- [x] ADR `0007`, "one of each class in the standing ten", is written and indexed
+- [ ] Rechiw (bench, DK), Netohje and Gerina: no conversion now. Gerina
+      is arms and in the 25, so she needs none. Rechiw needs the DK pair
+      if he's ever summoned
 
 ---
 
@@ -226,12 +248,24 @@ The idea is that the ten gear up in Karazhan on 10-man nights, while
 the 15 are already Gruul-ready and waiting for them.
 
 - [x] **Decision D.** There is no third tier. The bench is geared like the 15, and only when used
+- **State on 2026-09-26** (`roster-status.sh`): 15 of the 24 bots have 2–5
+  items equipped. Only Restofarian, Anmine, Ilyna, Ararin (14) and Gerina
+  are near full. **Tanke is balance, not resto** (SPEC MISMATCH), so his
+  pass must force resto. Ararin's defence is 461, under the 490 floor
+- **Tooling:** `gear-pass.sh`'s slot passes are disabled (item 1). The
+  per-character route is `hprv-spec.sh <name> "<spec>"`. It forces the
+  spec, but check whether it takes a gearscore cap before relying on it
+  for `init=168` / `init=183`
+- **Every pass wipes `co`/`nc`.** Re-convert Crumm (DK pair) and Ararin
+  (paladin pair) after their passes, and verify the row contents
 - [ ] Re-gear with `gear-pass.sh`, group by group, clearing `co` first
       (rule 2). The spec roll is forced, so this also lands the intended
       specs and heals the `ACTUAL-SPEC` regression
-- [ ] **Bullwark by hand.** He is never re-rolled. Pre-raid tank set to
-      ≥490 defence (archive ADR `0008` did this at Karazhan tier). Crumm
-      and Ararin need the same defence top-up after their pass
+- [ ] **Bullwark by hand.** He is never re-rolled. His gear is snapshotted
+      in `docs/bullwark-gear.md` (2026-09-26): 17 slots, ilvl 110–130, **no
+      enchants or gems on anything**, defence **474, 16 short of 490**.
+      Close it with defence enchants and gems before swapping any pieces.
+      Crumm and Ararin need a defence top-up after their passes too
 - [ ] Fimur, the only level-1 character in the 25, auto-levels and gears on
       first login behind Bullwark. Then give him an `init=183` pass,
       because the auto-gear is uncapped (`ITEM_QUALITY_LEGENDARY`). The

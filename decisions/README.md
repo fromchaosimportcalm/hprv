@@ -27,6 +27,9 @@ This directory is for decisions made **from 2026-08-13 onward**.
   above ilvl 125, the backups, that `AutoGearScoreLimit` gates only
   `autogear` and not drops, and that Bullwark's defence floor needs
   re-itemizing before he tanks.
+- `0007` — one of each class in the standing ten, and a 25 on top of it.
+  Records the new ten and 25, and that the swap found `playerbots_db_store`
+  empty and the rule-1 whisper wrong (per-class `co` + `nc` now).
 
 ## Where the history went
 

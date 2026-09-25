@@ -46,17 +46,25 @@ character list.
 
 ### The standing ten
 
-| Character | Role |
-|---|---|
-| Bullwark | human prot warrior — **main tank** |
-| Ararin | prot paladin off-tank (converted) |
-| Nathos, Krast, Tanke, Restofarian | holy pal, resto shaman, 2× resto druid |
-| Izri, Dijito, Ilyna | mage, shadow priest, hunter |
-| Anmine | rogue |
+**One of each class**, since 2026-09-26 (ADR `0007`):
 
-1 tank, 1 off-tank, 4 healers, 4 DPS. Swapping one is a single `UPDATE`
-— move one out before moving one in, and never exceed 10. The procedure
-is in `scripts/migrate-pool.sql` SECTION 2.
+| Character | Class | Role |
+|---|---|---|
+| Bullwark | warrior | human prot, **main tank** |
+| Crumm | death knight | blood off-tank, converted (DK form of rule 1) |
+| Nathos | paladin | holy, tank healer |
+| Krast | shaman | resto |
+| Restofarian | druid | resto |
+| Dijito | priest | shadow |
+| Izri | mage | frostfire |
+| Celerina | warlock | destruction |
+| Ilyna | hunter | beast mastery |
+| Anmine | rogue | combat |
+
+That's 2 tanks, 3 healers and 5 DPS. Swapping is `scripts/swap-standing-ten.sql`
+as a pattern: move out before in, never exceed 10, and run it with the
+server stopped and a dump taken. The 25 and the bench are in
+`scripts/roster.conf`.
 
 ### 25-man nights
 
@@ -217,7 +225,7 @@ Rule 1 in `CLAUDE.md` forces a choice, so `--mode` picks one:
 
 - **`--mode human`** (default). You main-tank. Any plate/bear body
   switched *into* a tank spec gets converted with
-  `co -tank,-tank assist,+dps,+dps assist` — it keeps tank talents, tank
+  the two-whisper, per-class conversion in `CLAUDE.md` rule 1 — it keeps tank talents, tank
   gear and crit immunity but `IsTank()` goes false, so it off-tanks by
   damage threat and never taunts. The script prints this whisper; it is
   the one manual step. **Do not whisper `co -threat` in this mode.**

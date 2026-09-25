@@ -116,7 +116,8 @@ If you draw a fresh body from the pool and it arrives tank-specced,
 convert it before it raids — once, ever:
 
 ```
-/w <bot> co -tank,-tank assist,+dps,+dps assist
+/w <bot> <co line for its class — CLAUDE.md rule 1 table>
+/w <bot> nc -tank assist,+dps assist
 ```
 
 Skipping this is not subtle: it will taunt bosses off you on cooldown all
@@ -148,7 +149,8 @@ If you do want to tank on someone else, convert `Bullwark` once, ever,
 while he is in your group as a bot:
 
 ```
-/w Bullwark co -tank,-tank assist,+dps,+dps assist
+/w Bullwark co -tank,-tank assist,+arms,+dps assist
+/w Bullwark nc -tank assist,+dps assist
 ```
 
 Safe to leave in place permanently — `co` only governs bot AI, so it does
@@ -194,7 +196,8 @@ him, whisper, done.
 Fix it once, ever, the next time he is summoned:
 
 ```
-/w Rechiw co -tank,-tank assist,+dps,+dps assist
+/w Rechiw co -blood,-tank assist,+frost,+frost aoe,+dps assist
+/w Rechiw nc -tank assist,+dps assist
 ```
 
 Then confirm the row exists — the absence is the whole bug:

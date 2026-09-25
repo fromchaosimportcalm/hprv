@@ -226,11 +226,14 @@ for n in 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24
     eval "sp=\${BOT_${n}_SPEC:-}"
     eval "ro=\${BOT_${n}_ROLE:-}"
     eval "bn=\${BOT_${n}_BENCH:-}"
+    eval "gp=\${BOT_${n}_GROUP:-}"
     # The bench is vestigial at 25 bodies — it existed to hold the raid at
     # ten for Karazhan, and nothing is benched now. It is still honoured:
     # a benched bot keeps its name, gear and spec in roster.conf but stays
     # out of the paste line.
-    if [[ -n "$nm" && ( -z "$bn" || "$bn" == "no" ) ]]; then
+    # GROUP=ten auto-logs-in on account 101, so it's already online and
+    # doesn't belong in the summon line.
+    if [[ -n "$nm" && "$gp" != "ten" && ( -z "$bn" || "$bn" == "no" ) ]]; then
         ONLINE_NAMES="${ONLINE_NAMES:+$ONLINE_NAMES,}$nm"
     fi
     report_one "$nm" "$cl" "$sp" "$ro" "$bn"

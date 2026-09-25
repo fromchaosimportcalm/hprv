@@ -1,0 +1,15 @@
+## One of each class in the standing ten, and a 25 built on top of it
+Date: 2026-09-26
+Tags: roster,pool,standing-ten,composition,rule-1,conversion,hprv
+
+Context: The standing ten (ADR `0001`) had two paladins, two resto druids, no warlock and no death knight: 1 tank, 1 off-tank, 4 healers, 4 DPS, which is more healing than Karazhan needs. Clinton wanted one of each class in the ten, Bullwark kept, in a working 10-man shape, with a 25 built on top so 10-man nights gear the core while the 25 waits ready. A 40-man tier was considered and dropped: TBC has no 40-man content, and retuning AQ40-style raids isn't worth it.
+
+Decision: The ten is **Bullwark (warrior, main tank), Crumm (DK, converted off-tank), Nathos (holy paladin), Krast (resto shaman), Restofarian (resto druid), Dijito (shadow priest), Izri (mage), Celerina (warlock), Ilyna (hunter) and Anmine (rogue)**: 2 tanks, 3 heals, 5 DPS. Ararin and Tanke moved back to their rndbot accounts and into the 25. The 25 adds 15 summoned bodies for 3 plate, 7 heals and 15 DPS, with 4 shamans. The other 16 pool characters are a bench of spares that get no work until swapped in. Applied with `scripts/swap-standing-ten.sql` (dry-run with ROLLBACK first, then committed with the server stopped, after a dump `pre-swap-ten-20260925-164058.sql.gz`). Recorded in `scripts/roster.conf` (slots 01–09 `GROUP=ten`, 10–24 `GROUP=25`, plus `BENCH`).
+
+Reasoning: With one of each class, the paladin has to be either the off-tank or the tank healer. Holy is the one that can't be replaced when a human is taking the hits, so the Death Knight off-tanks. The 3-heal / 5-DPS split is the standard Karazhan shape. Four shamans in the 25 put totems in four of the five parties. The tier reset (ADR `0006`) had already emptied the lockouts, so this was the cheapest time to change names.
+
+**What the swap uncovered (the durable part).** `playerbots_db_store` was **empty**: no binlog write since at least 26 Aug. So no plate bot was converted, whatever the docs said. And the documented rule-1 whisper was wrong. `IsTank()` checks every engine, and `tank assist` (TANK-typed) sits in the non-combat engine. A Death Knight's tank strategy is `blood`, not `tank`. Warriors have no `dps` strategy. Every `init=` pass deletes a bot's rows. The corrected per-class `co` + `nc` pair is in `CLAUDE.md` rule 1, and Crumm is the first body converted and verified that way. Two open items follow from it: Crumm runs the `frost` rotation on blood talents, so his damage is below a real frost DK's, deferred by Clinton ("we can deal with it"); and `gear-pass.sh`'s slot passes no longer match `roster.conf`, so they refuse to run until item 2 replaces them.
+
+Alternatives: Ararin as the off-tank with the DK as DPS — this loses the holy paladin, so rejected (TODO decision A). Keep Tanke over Restofarian (decision B, Restofarian kept). A third, 40-man tier (decision C, dropped).
+
+Affected: scripts/swap-standing-ten.sql, scripts/roster.conf, scripts/roster-status.sh, scripts/gear-pass.sh, scripts/hprv-spec.sh, scripts/pool.conf, docs/pool.md, docs/raid-night.md, CLAUDE.md, decisions/0002, TODO.md

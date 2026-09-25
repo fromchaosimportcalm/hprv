@@ -249,6 +249,16 @@ gs_for_ilvl() { awk -v l="$1" 'BEGIN{printf "%d", int(l*1.4641 + 0.5)}'; }
 # init_cmd <gearscore-or-empty> -> "init=epic" or "init=<gs>"
 init_cmd() { [[ -n "${1:-}" ]] && printf 'init=%s' "$1" || printf 'init=epic'; }
 
+# The slot passes below were written against the archive-era roster.conf
+# slot order (BOT_01 = prot paladin, BOT_09 = Netohje, ...). roster.conf
+# was rebuilt 2026-09-26 (TODO item 1), so every slot index now names a
+# different character. Running them would force the wrong spec onto the
+# wrong body. TODO item 2 replaces them. Until then they refuse.
+case "${1:-}" in
+    tank|offtank|a|b|c)
+        [[ "${HPRV_ALLOW_STALE_SLOTS:-0}" == "1" ]] || die "pass '${1}' uses pre-2026-09-26 slot numbers that no longer match roster.conf — see TODO.md item 2 (override: HPRV_ALLOW_STALE_SLOTS=1)" ;;
+esac
+
 case "${1:-}" in
 
 master)
@@ -396,6 +406,7 @@ Then: gear-pass.sh restore, and both reloads again.
 *** THEN CONVERT HIM OUT OF TANKHOOD — ONE WHISPER, ONCE. ***
 
   /w Ararin co -tank,-tank assist,+dps,+dps assist
+  /w Ararin nc -tank assist,+dps assist
 
 WITHOUT THIS HE TAUNTS BOSSES OFF THE HUMAN TANK ON COOLDOWN, FOREVER.
 That is not a tuning problem and no threat setting reaches it (ADR 0014,
@@ -502,7 +513,8 @@ offtank)
     #
     # IF YOU EVER RUN IT AGAIN ALONGSIDE A HUMAN TANK, he needs the same
     # conversion the `tank` pass prints —
-    #   /w Netohje co -tank,-tank assist,+dps,+dps assist
+    #   /w Netohje co -tank,-tank assist,+arms,+dps assist
+    #   /w Netohje nc -tank assist,+dps assist
     # — and for a warrior it matters MORE, not less: his taunt sits at
     # ACTION_INTERRUPT + 1 (TankWarriorStrategy.cpp:217-224), a higher
     # priority than the paladin's ACTION_HIGH + 7. Otherwise the human

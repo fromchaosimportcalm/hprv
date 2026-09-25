@@ -21,7 +21,10 @@
 --   Crumm has NO playerbots_db_store row (the whole table was found empty
 --   2026-09-26), so he logs in as a full taunting tank. First thing after
 --   login, before any pull:
---       /w Crumm co -tank,-tank assist,+dps,+dps assist
+--       /w Crumm co -blood,+frost,+frost aoe
+--       /w Crumm nc -tank assist,+dps assist
+--   (the co-only whisper originally written here was wrong for a DK —
+--    CLAUDE.md rule 1. This pair is what was run, 2026-09-26.)
 --   then assert the row EXISTS (absence is not evidence of conversion):
 --       SELECT s.value FROM acore_playerbots.playerbots_db_store s
 --         JOIN acore_characters.characters c ON c.guid = s.guid

@@ -207,6 +207,23 @@ is_plate_or_bear() {
     case "$1" in warrior|paladin|dk|druid) return 0 ;; *) return 1 ;; esac
 }
 
+# The rule-1 conversion, per class. Two whispers: IsTank() is
+# ContainsStrategy(STRATEGY_TYPE_TANK) across ALL engines, and `tank
+# assist` is itself TANK-typed, so the non-combat copy must go too. The
+# class tank strategy is named differently per class (DK `blood`, druid
+# `bear`), and each needs a DPS rotation put back in its place: warriors
+# have no `dps` strategy, so a bare `-tank` left them with no rotation at all.
+# Read from AiFactory.cpp / *AiObjectContext.cpp at the pin, 2026-09-26.
+convert_co() {
+    case "$1" in
+        warrior) echo "co -tank,-tank assist,+arms,+dps assist" ;;
+        paladin) echo "co -tank,-tank assist,+dps,+dps assist" ;;
+        dk)      echo "co -blood,-tank assist,+frost,+frost aoe,+dps assist" ;;
+        druid)   echo "co -bear,-tank assist,+cat,+dps assist" ;;
+    esac
+}
+CONVERT_NC="nc -tank assist,+dps assist"
+
 # ======================================================================
 # args
 # ======================================================================
@@ -331,7 +348,7 @@ fi
 NEEDS_WHISPER=""
 if is_plate_or_bear "$CLASS" && is_tank_spec "$TARGET_SPEC"; then
     if [[ "$MODE" == "human" ]]; then
-        NEEDS_WHISPER="/w ${CHAR} co -tank,-tank assist,+dps,+dps assist"
+        NEEDS_WHISPER="/w ${CHAR} $(convert_co "$CLASS")"
     fi
 fi
 
@@ -360,10 +377,14 @@ if [[ -n "$NEEDS_WHISPER" ]]; then
     info "!! on cooldown, all night — LoseAggroTrigger is permanently satisfied"
     info "!! while you hold the target, and no threat setting reaches it."
     info "!!"
-    info "!! Whisper this once (it persists — you will not need it again until"
-    info "!! this character's spec changes):"
+    info "!! Whisper BOTH, after this pass. Any later init= pass deletes them"
+    info "!! again (PlayerbotFactory::Randomize -> PlayerbotRepository::Reset):"
     info "!!"
     info "!!     $NEEDS_WHISPER"
+    info "!!     /w ${CHAR} ${CONVERT_NC}"
+    info "!!"
+    info "!! Then assert the 'co' AND 'nc' rows exist and hold no tank / blood /"
+    info "!! bear / tank assist. Absence of a row is NOT conversion."
 fi
 
 if [[ "$MODE" == "bot" ]] && is_tank_spec "$TARGET_SPEC"; then

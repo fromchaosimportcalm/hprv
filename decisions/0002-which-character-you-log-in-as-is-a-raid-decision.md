@@ -22,3 +22,11 @@ Amended the same day — checking the box for this ADR turned up a live fault.
 **The check that missed him is the durable lesson.** `roster.conf` recorded "Verified in `playerbots_db_store` 2026-08-13: none carries `+tank` or `+tank assist`." That query asks whether anyone *carries* the tank strategies, and a bot with no rows at all answers "no" while running them from spec. It passed vacuously on the one bot it most needed to catch. **Absence of a `co` row is not evidence of conversion; it is evidence of the opposite.** Any future verification must assert the row is *present* and then inspect its contents — never assert that a string is missing. Of the 24 raid bots, 21 carry a `co` row; the three that do not are `Rechiw`, `Tanke` and `Anmine`, and the latter two are a resto druid and a rogue that need no conversion.
 
 **Two smaller corrections from the same pass.** All 21 override-carrying bots have `+blacktemple` frozen in, not 20 as `CLAUDE.md` said — the claim itself holds at 21 of 21. And `Ararin` and `Crumm` both carry `+pull,+pull back` in their frozen lists, which is what makes `pull` available to the raid today.
+
+---
+
+Amended 2026-09-26 — **the conversion whisper this ADR prescribes was incomplete.**
+
+The decision stands. The mechanism was wrong. `IsTank()` is `ContainsStrategy(STRATEGY_TYPE_TANK)` over *every* engine, and `tank assist`, which is TANK-typed, sits in the **non-combat** engine of every tank spec. So `co -tank,-tank assist,+dps,+dps assist` never made `IsTank()` false for anyone. It also removed nothing from a Death Knight (whose tank strategy is `blood`) or a bear (`bear`), and it left a warrior with no rotation, because warriors have no `dps` strategy. The corrected conversion is a per-class `co` plus `nc -tank assist,+dps assist`, tabulated in `CLAUDE.md` rule 1. For `Bullwark` it is `co -tank,-tank assist,+arms,+dps assist` then `nc -tank assist,+dps assist`.
+
+Separately, `playerbots_db_store` was found **empty** (no write since at least 26 Aug), so the "genuinely converted" `Ararin` and `Crumm` recorded above were not converted at all by then. Every `init=` pass deletes a bot's rows (`PlayerbotFactory::Randomize()` → `PlayerbotRepository::Reset()`), so conversion is the last step of every gear pass, not a one-off.

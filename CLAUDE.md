@@ -23,7 +23,7 @@ a fact is unverified it says so.
 | Resources | 4 vCPU, 12 GB RAM, Tank-backed bulk storage |
 | Core | `mod-playerbots/azerothcore-wotlk`, Playerbot branch, pinned |
 | Module | `mod-playerbots/mod-playerbots`, pinned to the same merge |
-| Standing raid | 10 on your own account, **auto-login** — Bullwark + 9 bots |
+| Standing raid | 10 on your own account, **auto-login**: Bullwark + 9 bots, one of each class (ADR `0007`) |
 | Wider pool | 31 more on type-2 accounts, summoned by name for 25-man |
 | Ambient | 20 random bots, levels 1–70, Eastern Kingdoms / Kalimdor / Outland only (no Northrend, 2026-09-26) |
 | Gear tier | **Tier 4, reset 2026-09-25** — everything above ilvl 125 stripped from the 25, `AutoGearScoreLimit = 125` (ADR `0006`) |
@@ -58,16 +58,43 @@ this.**
 Measured on Crumm, 2026-08-13: `dark command` pushed 3,651 times,
 executed 49. Forty-nine rips off the main tank in one night.
 
-The fix, whispered **once per bot, ever** (it persists):
+The fix is **two whispers, and the first depends on the class**
+(corrected 2026-09-26, read from `AiFactory.cpp` and the class
+`*AiObjectContext.cpp` files):
 
-```
-/w <bot> co -tank,-tank assist,+dps,+dps assist
-```
+| Class | `co` (combat) | then, every class |
+|---|---|---|
+| Warrior | `co -tank,-tank assist,+arms,+dps assist` | `nc -tank assist,+dps assist` |
+| Paladin | `co -tank,-tank assist,+dps,+dps assist` | 〃 |
+| Death Knight | `co -blood,-tank assist,+frost,+frost aoe,+dps assist` | 〃 |
+| Druid (bear) | `co -bear,-tank assist,+cat,+dps assist` | 〃 |
 
-That clears `STRATEGY_TYPE_TANK` so `IsTank()` goes false. The bot keeps
-its tank talents, tank gear and crit immunity, and off-tanks by damage
-threat instead of by taunt — which is what you want from a plate body on
-adds anyway.
+Why the old single whisper, `co -tank,-tank assist,+dps,+dps assist`,
+was wrong:
+
+- **`IsTank()` checks every engine.** It is
+  `ContainsStrategy(STRATEGY_TYPE_TANK)`, which loops over the combat,
+  non-combat *and* dead engines. `tank assist` is itself TANK-typed
+  (`TankAssistStrategy.h:20`), and `AiFactory` puts it in the
+  **non-combat** engine for every tank spec. So after a `co`-only
+  whisper, `IsTank()` stayed **true**. The taunt was gone on warriors and
+  paladins, but `GetMainTankGuid()`, `ThreatValue` and the raid scripts
+  still counted the bot as a tank.
+- **The class tank strategy isn't always called `tank`.** A Death Knight's
+  is `blood` and a druid's is `bear`. On them, `-tank` removed nothing, and
+  `blood` carries `lose aggro → dark command` itself
+  (`BloodDKStrategy.cpp:135`). **Crumm was never converted.** That is why
+  he was the bot measured at 3,651 taunts.
+- **Warriors have no `dps` strategy** (only `tank`, `arms`, `fury`), so
+  the old whisper left a prot warrior with no rotation at all. Paladins
+  do have one (Retribution), so on Ararin `+dps` did work.
+
+The bot keeps its talents, gear and crit immunity, and off-tanks by
+damage threat instead of by taunt. **Verify both rows, and check the
+content, not just that the row is there.** Neither `co` nor `nc` may hold
+`tank`, `blood`, `bear` or `tank assist`. `tank face`, `pull` and
+`pull back` are not TANK-typed and are fine. Crumm verified this way,
+2026-09-26.
 
 **Any plate bot that arrives tank-specced needs this before it raids.**
 
@@ -87,7 +114,8 @@ adds anyway.
 > login. He is on account 83, so this is a **25-man-only** fault — he is
 > not in the standing ten, and the only plate body that auto-logs-in
 > (`Ararin`) was believed converted, but see the note above. The whisper needs him summoned, so
-> it can only land on a 25-man night. This file previously listed him as done: the
+> it can only land on a 25-man night. He is a Death Knight, so he needs the
+> `blood` form of the whisper from the table above. This file previously listed him as done: the
 > 2026-08-13 check asked whether anyone *carries* `+tank`, and a bot
 > with no rows answers "no" while running it from spec. **Absence of a
 > `co` row is not evidence of conversion — it is evidence of the
@@ -104,7 +132,7 @@ no `co`, so he arrives a full tank.
   This is now the supported bot-tank mode; `Netohje` is retired (ADR
   `0002`).
 - **Log in as `Ararin` or any plate body** — rule 1 fires *at you*.
-  Convert `Bullwark` with the same whisper first; it is harmless to
+  Convert `Bullwark` first, with the warrior row from the table; it is harmless to
   leave in place, since `co` governs bot AI only.
 
 Nothing advances the raid on its own on any character — every movement
@@ -359,12 +387,15 @@ clear that bar.
 | `docs/build.md` | Standing the server up from nothing |
 | `docs/raid-night.md` | Session runbook — start here to actually play |
 | `docs/encounters/` | Per-instance fight notes, one file per raid |
-| `scripts/roster.conf` | The 24 bots, committed so they can be re-summoned |
+| `scripts/roster.conf` | The ten (auto-login), the 15 (summoned) and the bench, committed so they can be re-summoned |
 | `scripts/pins.conf` | Core + module SHAs. The reproducibility artifact |
 | `scripts/gear-pass.sh` | Force the spec roll, then gear |
 | `scripts/roster-status.sh` | Level/class/gear from the DB, no login needed |
 | `tuning/` | BC-feel SQL. See below |
 | `custom/` | Custom NPC SQL (ID range 9100000–9100099) — `docs/custom-npcs.md` |
+| `docs/bullwark-gear.md` | Bullwark's hand-picked gear, snapshotted, with restore lines. He is never `init=`'d |
+| `scripts/swap-standing-ten.sql` | The 2026-09-26 standing-ten swap. It's the pattern for any future swap (ADR `0007`) |
+| `TODO.md` | The working list: items 1–7, with status |
 | `scripts/strip-gear-above-ilvl.sql` | Delete equipped gear above an ilvl across the roster — ADR `0006` |
 | `decisions/` | Standing rules only — history lives in `hprv-archive` |
 
