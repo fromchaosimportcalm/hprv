@@ -30,7 +30,7 @@ This directory is for decisions made **from 2026-08-13 onward**.
 
 ## Where the history went
 
-The predecessor repo carries 14 ADRs recording how this project arrived
+The predecessor repo, `hprv-archive`, carries 14 ADRs recording how this project arrived
 at its current shape. They are preserved there and are worth reading if
 you need to know *why* something is the way it is — several document
 real module internals at this pin, with file-and-line citations that are

@@ -70,7 +70,7 @@ scripts/
   roster-status.sh     DB-side status report
   gear-pass.sh         spec-then-gear passes
   pins.conf            core + module SHAs — the reproducibility artifact
-decisions/             standing rules; history lives in the archive repo
+decisions/             standing rules; history lives in `hprv-archive`
 tuning/                BC-feel SQL
 ```
 
@@ -79,7 +79,7 @@ tuning/                BC-feel SQL
 This is a distillation. It replaces a repo of 36 commits and 14 ADRs that
 recorded a long search — three raid compositions in two days, a main tank
 that moved to a bot and back, and several config stances that were later
-reversed. **That history is preserved in the archive repo**; nothing was
+reversed. **That history is preserved in the archive repo, `hprv-archive`**; nothing was
 thrown away.
 
 What survived is here, and it is deliberately much smaller. Where the two

@@ -329,7 +329,7 @@ clear that bar.
 | `tuning/` | BC-feel SQL. See below |
 | `custom/` | Custom NPC SQL (ID range 9100000–9100099) — `docs/custom-npcs.md` |
 | `scripts/strip-gear-above-ilvl.sql` | Delete equipped gear above an ilvl across the roster — ADR `0006` |
-| `decisions/` | Standing rules only — history lives in the archive repo |
+| `decisions/` | Standing rules only — history lives in `hprv-archive` |
 
 On the box: `/mnt/hprv/server` (install), `/mnt/hprv/data` (extracted
 client data), `/mnt/hprv/build/azerothcore` (source), `/etc/hprv/hprv.env`

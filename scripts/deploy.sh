@@ -26,7 +26,7 @@ DRY=""
 [[ "${1:-}" == "--dry-run" ]] && DRY="--dry-run"
 
 # Deliberately NOT --delete. /opt/hprv/scripts also holds artefacts from
-# the archive repo (roster-gruul.conf, timestamped roster backups) that
+# hprv-archive (roster-gruul.conf, timestamped roster backups) that
 # are still worth having and are not tracked here.
 rsync -av $DRY \
     --chmod=F755 \
