@@ -7,18 +7,15 @@ Professions (5) go after gear, because a gear pass may reset them.
 
 Measured on the box 2026-09-26 unless marked otherwise.
 
-> **Start here next session: item 2 (gear).** Items 3 and 1 are done.
-> First step: check whether `hprv-spec.sh` can pass a gearscore cap
-> (`init=168` for the ten, `init=183` for the 15). `gear-pass.sh`'s slot
-> passes are disabled. Then draft the passes for review, with
-> Bullwark's defence (`docs/bullwark-gear.md`) and the Crumm and Ararin
-> re-conversions as the closing steps. Nothing on the box is mid-change:
-> the server is up, and the ten auto-login as normal.
+> **Start here next session: item 2 (gear), ready to run in game.**
+> `hprv-spec.sh --batch gear-rounds.conf <1|2|3>`, paste, `--restore`,
+> next round. Then one restart, Ararin's conversion, and Bullwark's
+> defence. Nothing on the box is mid-change: no forced table is pending.
 
 | # | Item | Kind | State |
 |---|---|---|---|
 | 3 | Level cap past 70 | do | **Done and verified 2026-09-26** |
-| 1 | Roster: 10 + 15 by class, rest on the bench | do | **Done 2026-09-26** (Crumm's damage deferred) |
+| 1 | Roster: 10 + 15 by class, rest on the bench | do | **Done 2026-09-26** (Crumm goes frost in item 2) |
 | 2 | Gear each group at its own tier | do | **Urgent.** The standing ten are half naked |
 | 4 | Riding maxed at 70 | do | **Already done.** Two cosmetic fixes |
 | 5 | Professions for the ten | plan | **Bullwark done 2026-09-26.** The other nine are still a plan |
@@ -200,9 +197,10 @@ they'll level themselves the first time they're summoned.
       corrected DK pair, `co -blood,+frost,+frost aoe` + `nc -tank assist,+dps assist`.
       Neither row holds a TANK-typed strategy. The original `co -tank,…`
       line would have removed nothing from a DK (see CLAUDE.md rule 1)
-- [ ] **Deferred ("we can deal with it"):** Crumm runs `frost` on blood
-      talents, so his damage is below a real frost DK's. Revisit during
-      item 2: keep blood talents with the frost rotation, or re-spec
+- [x] **Decision G (2026-09-26): Crumm goes frost.** He ran the `frost`
+      rotation on blood talents. His item 2 pass forces `frost pve`,
+      so he has frost talents and frost gear, and no TANK-typed strategy.
+      No rule-1 conversion needed, ever. The ten is now you + 3 heals + 6 DPS
 - [x] Account 101 swap: out before in, never above 10. Done by the script
 - [x] `roster.conf` rebuilt: slots 01–09 `GROUP=ten`, 10–24 `GROUP=25`,
       plus `BENCH`. `roster-status.sh` leaves the ten out of the summon
@@ -253,20 +251,34 @@ the 15 are already Gruul-ready and waiting for them.
   items equipped. Only Restofarian, Anmine, Ilyna, Ararin (14) and Gerina
   are near full. **Tanke is balance, not resto** (SPEC MISMATCH), so his
   pass must force resto. Ararin's defence is 461, under the 490 floor
-- **Tooling:** `gear-pass.sh`'s slot passes are disabled (item 1). The
-  per-character route is `hprv-spec.sh <name> "<spec>"`. It forces the
-  spec, but check whether it takes a gearscore cap before relying on it
-  for `init=168` / `init=183`
-- **Every pass wipes `co`/`nc`.** Re-convert Crumm (DK pair) and Ararin
-  (paladin pair) after their passes, and verify the row contents
-- [ ] Re-gear with `gear-pass.sh`, group by group, clearing `co` first
-      (rule 2). The spec roll is forced, so this also lands the intended
-      specs and heals the `ACTUAL-SPEC` regression
+- **The cap works, verified in source 2026-09-26.** `init=<n>`
+  (`PlayerbotMgr.cpp:813`) builds the factory at legendary quality with
+  `n` as the score limit. The global `AutoGearScoreLimit` is not consulted.
+  Scores are truncated to an integer, so 168 admits ilvl 115 epics and 183
+  admits ilvl 125 epics. Side effect: the same cap lets blues through to
+  ~ilvl 126 (168) and ~137 (183), so expect some high-ilvl blues
+- **Tooling:** `hprv-spec.sh --batch gear-rounds.conf <round>`. It forces
+  one spec per class for several classes at once, with one backup and one
+  pair of reloads, and prints one `init=<cap>` line per cap (names are
+  comma-separated, `PlayerbotMgr.cpp:1249`). 23 passes become 3 rounds.
+  A `.pending` marker now stops a second force before `--restore`, and
+  `--restore` refuses to guess (its old "newest backup" fallback would
+  have restored the 2026-08-13 config over this week's map/level fix)
+- **Every pass wipes `co`/`nc`.** Re-convert Ararin (paladin pair) after
+  round 2 and verify the row contents. Crumm is frost and needs nothing
+- [ ] Round 1: summon Tanke, Irntifumm, Gerina, then batch 1, paste, `--restore`
+- [ ] Round 2: summon the eight on the header line, batch 2, paste, `--restore`,
+      then Ararin's two whispers and the row check
+- [ ] Round 3: summon Zaene, Dehme, Vestanza, batch 3, paste, `--restore`
+- [ ] **Restart once after round 3.** Three reloads leave duplicated list
+      settings (rule 5), and only a restart clears them
+- [ ] `.save`, then `roster-status.sh`: every spec lands (this also heals the
+      `ACTUAL-SPEC` regression), and the slot counts come back to 17
 - [ ] **Bullwark by hand.** He is never re-rolled. His gear is snapshotted
       in `docs/bullwark-gear.md` (2026-09-26): 17 slots, ilvl 110–130, **no
       enchants or gems on anything**, defence **474, 16 short of 490**.
       Close it with defence enchants and gems before swapping any pieces.
-      Crumm and Ararin need a defence top-up after their passes too
+      Ararin needs a defence top-up after his pass too (`hprv-spec.sh Ararin --show`)
 - [ ] Fimur, the only level-1 character in the 25, auto-levels and gears on
       first login behind Bullwark. Then give him an `init=183` pass,
       because the auto-gear is uncapped (`ITEM_QUALITY_LEGENDARY`). The

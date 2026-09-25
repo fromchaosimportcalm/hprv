@@ -1,9 +1,21 @@
 #!/usr/bin/env bash
 # hprv-spec.sh — switch one pool character's spec AND the gear to match.
 #
-#   hprv-spec.sh <character> <spec> [--mode human|bot] [--quality epic]
+#   hprv-spec.sh <character> <spec> [--mode human|bot] [--quality epic|<gearscore>]
+#   hprv-spec.sh --batch <file> <round>
 #   hprv-spec.sh <character> --show
 #   hprv-spec.sh --list [class]
+#   hprv-spec.sh --restore
+#
+# --quality takes a colour or a number. A number is a gear-score cap for
+# that one bot (`init=<n>`, PlayerbotMgr.cpp:813), independent of the
+# global AutoGearScoreLimit. Score = ilvl x 1.1^quality-steps, truncated:
+# an epic is ilvl x 1.4641, so 168 admits ilvl 115 epics and 183 admits 125.
+#
+# --batch runs one round of a batch file (see gear-rounds.conf): several
+# characters, several classes, one config backup and one pair of reloads.
+# The forced table is per class, so a round may hold any number of
+# classes but only ONE spec per class. It refuses otherwise.
 #
 # Runs ON THE BOX (needs playerbots.conf and mysql).
 #
@@ -120,9 +132,18 @@ spec_list_for_class() {
 
 # --- probability table -------------------------------------------------
 PB_BACKUP=""
+# Present from the moment a table is forced until --restore. Without it, a
+# second run before --restore would back up the ALREADY-FORCED config, and
+# --restore (newest backup wins) would "restore" the forced table.
+PENDING="${PB_CONF}.hprv-spec.pending"
 backup_conf() {
+    if [[ -e "$PENDING" ]]; then
+        die "a forced table is still live ($(head -1 "$PENDING")).
+  Run --restore first. Nothing has been changed."
+    fi
     PB_BACKUP="${PB_CONF}.hprv-spec.$(date +%Y%m%d-%H%M%S).bak"
     cp -p "$PB_CONF" "$PB_BACKUP"
+    printf '%s\n' "$PB_BACKUP" > "$PENDING"
     info "  backup: $PB_BACKUP"
 }
 
@@ -224,6 +245,136 @@ convert_co() {
 }
 CONVERT_NC="nc -tank assist,+dps assist"
 
+# Validate the spec is one this character is meant to run, and print its
+# PremadeSpecName index. Not a hard technical limit — it is a guard against
+# typos that would otherwise cost a full gear pass to notice.
+resolve_spec() {
+    local char="$1" class="$2" cid="$3" home="$4" offs="$5" spec="$6" idx
+    if [[ "$spec" != "$home" ]] && ! printf '%s' "$offs" | tr '|' '\n' | grep -qxF "$spec"; then
+        die "'$spec' is not $char's home spec or an offspec.
+  home:     $home
+  offspecs: ${offs//|/, }
+  all $class specs at this pin: $(spec_list_for_class "$cid")
+  (edit pool.conf if you genuinely want a new offspec for this character)"
+    fi
+    idx="$(spec_index "$cid" "$spec")"
+    [[ -n "$idx" ]] || die "'$spec' is not a PremadeSpecName for $class at this pin.
+  available: $(spec_list_for_class "$cid")"
+    printf '%s' "$idx"
+}
+
+# ======================================================================
+# --batch: one round of a batch file
+# ======================================================================
+run_batch() {
+    local file="$1" round="$2"
+    [[ -r "$file" ]] || die "cannot read batch file $file"
+    [[ "$round" =~ ^[0-9]+$ ]] || die "round must be a number, got '$round'"
+
+    local -a names=() classes=() specs=() caps=() guids=() offline=()
+    local -A force_idx=() force_spec=()
+    local r n cap spec line cls cid idx g i
+
+    while read -r r n cap spec; do
+        [[ -z "$r" || "$r" == \#* ]] && continue
+        [[ "$r" == "$round" ]] || continue
+        [[ "$cap" =~ ^[0-9]+$ || "$cap" =~ ^(white|green|blue|epic|legendary)$ ]] \
+            || die "$n: cap must be a gear score or a colour, got '$cap'"
+        line="$(pool_line "$n")"
+        [[ -n "$line" ]] || die "'$n' is not in $POOL_CONF"
+        n="$(pool_field "$line" 1)"
+        cls="$(pool_field "$line" 2)"
+        cid="${CLASS_ID[$cls]:?unknown class '$cls' for $n}"
+        idx="$(resolve_spec "$n" "$cls" "$cid" "$(pool_field "$line" 3)" "$(pool_field "$line" 4)" "$spec")"
+        if [[ -n "${force_idx[$cid]:-}" && "${force_idx[$cid]}" != "$idx" ]]; then
+            die "round $round forces $cls to both '${force_spec[$cid]}' and '$spec'.
+  The table is per class: one spec per class per round. Move one to another round."
+        fi
+        force_idx[$cid]="$idx"; force_spec[$cid]="$spec"
+        g="$(char_guid "$n")"
+        [[ -n "$g" ]] || die "$n has no character row"
+        [[ "$(char_online "$n")" == "1" ]] || offline+=("$n")
+        names+=("$n"); classes+=("$cls"); specs+=("$spec"); caps+=("$cap"); guids+=("$g")
+    done < "$file"
+
+    [[ ${#names[@]} -gt 0 ]] || die "round $round has no entries in $file"
+    if [[ ${#offline[@]} -gt 0 ]]; then
+        warn "not online: ${offline[*]}"
+        warn "init= only works on a bot that already has you as master. Summon them:"
+        warn "    .playerbots bot add $(IFS=,; echo "${offline[*]}")"
+        die "aborting — nothing has been changed. Summon them, then re-run."
+    fi
+
+    info "=============================================================="
+    info " batch round $round from $(basename "$file"): ${#names[@]} characters"
+    info "=============================================================="
+    for i in "${!names[@]}"; do
+        printf '   %-13s %-8s %-15s init=%s\n' "${names[$i]}" "${classes[$i]}" "${specs[$i]}" "${caps[$i]}"
+    done
+
+    info ""
+    info "1. forcing the spec table, one spec per class"
+    backup_conf
+    for cid in "${!force_idx[@]}"; do
+        force_spec_prob "$cid" "${force_idx[$cid]}"
+        info "  RandomClassSpecProb.${cid}.* -> ${force_idx[$cid]}=100 (${force_spec[$cid]})"
+    done
+    set_key EquipAndSpecPersistence 0
+    info "  EquipAndSpecPersistence -> 0 (until --restore)"
+
+    info ""
+    info "2. PASTE THESE IN GAME, IN THIS ORDER"
+    queue ".reload config"
+    queue ".playerbots bot reload"
+    # One init= line per cap. The handler splits names on ',' (PlayerbotMgr.cpp:1249).
+    # Eight names a line keeps each well inside the chat input limit.
+    local c batch k
+    for c in $(printf '%s\n' "${caps[@]}" | sort -u); do
+        batch=(); k=0
+        for i in "${!names[@]}"; do
+            [[ "${caps[$i]}" == "$c" ]] || continue
+            batch+=("${names[$i]}"); k=$((k+1))
+            if [[ $k -eq 8 ]]; then
+                queue ".playerbots bot init=${c} $(IFS=,; echo "${batch[*]}")"; batch=(); k=0
+            fi
+        done
+        [[ ${#batch[@]} -gt 0 ]] && queue ".playerbots bot init=${c} $(IFS=,; echo "${batch[*]}")"
+    done
+    flush_cmds
+
+    info "3. strategy overrides"
+    for i in "${!names[@]}"; do
+        if has_co_override "${guids[$i]}"; then
+            clear_co_override "${guids[$i]}"
+            info "  ${names[$i]}: cleared a stale 'co' override"
+        fi
+    done
+    info "  (the init= pass deletes every row anyway: Randomize -> Reset)"
+
+    info ""
+    info "=============================================================="
+    info " NOT DONE YET. After the paste, put the config back:"
+    info ""
+    info "        $0 --restore"
+    info ""
+    info " Until then every bot of a forced class that gets geared rolls the"
+    info " forced spec, and no other round (or single pass) will start."
+    info "=============================================================="
+
+    for i in "${!names[@]}"; do
+        is_plate_or_bear "${classes[$i]}" && is_tank_spec "${specs[$i]}" || continue
+        info ""
+        info "!! ${names[$i]} is a tank-specced ${classes[$i]}. After the pass, whisper BOTH"
+        info "!! and assert the rows (CLAUDE.md rule 1):"
+        info "!!     /w ${names[$i]} $(convert_co "${classes[$i]}")"
+        info "!!     /w ${names[$i]} ${CONVERT_NC}"
+        info "!! Then .save and check defence:  $0 ${names[$i]} --show"
+    done
+
+    info ""
+    info "Verify:  scripts/roster-status.sh    (reads LAST-SAVED state — .save first)"
+}
+
 # ======================================================================
 # args
 # ======================================================================
@@ -231,10 +382,21 @@ CONVERT_NC="nc -tank assist,+dps assist"
 
 if [[ "$1" == "--list" ]]; then list_pool "${2:-}"; exit 0; fi
 
+if [[ "$1" == "--batch" ]]; then
+    run_batch "${2:?usage: hprv-spec.sh --batch <file> <round>}" "${3:?usage: hprv-spec.sh --batch <file> <round>}"
+    exit 0
+fi
+
 if [[ "$1" == "--restore" ]]; then
-    newest="$(ls -1t "${PB_CONF}".hprv-spec.*.bak 2>/dev/null | head -1 || true)"
-    [[ -n "$newest" ]] || die "no hprv-spec backup found next to $PB_CONF"
+    # Only ever the backup THIS force took. Falling back to "newest backup"
+    # would happily restore one from weeks ago over every config change
+    # made since.
+    [[ -e "$PENDING" ]] || die "nothing is pending — no forced table to restore.
+  Older backups are next to $PB_CONF; restore one by hand if you mean to."
+    newest="$(head -1 "$PENDING")"
+    [[ -r "$newest" ]] || die "pending marker names $newest, which is missing"
     cp -p "$newest" "$PB_CONF"
+    rm -f "$PENDING"
     info "Restored $PB_CONF from $newest"
     info ""
     info "Now, in game:"
@@ -282,20 +444,7 @@ done
 
 [[ "$MODE" == "human" || "$MODE" == "bot" ]] || die "--mode must be 'human' or 'bot'"
 
-# Validate the spec is one this character is meant to run. Not a hard
-# technical limit — it is a guard against typos that would otherwise cost
-# a full gear pass to notice.
-if [[ "$TARGET_SPEC" != "$HOME_SPEC" ]] && ! printf '%s' "$OFFSPECS" | tr '|' '\n' | grep -qxF "$TARGET_SPEC"; then
-    die "'$TARGET_SPEC' is not $CHAR's home spec or an offspec.
-  home:     $HOME_SPEC
-  offspecs: ${OFFSPECS//|/, }
-  all $CLASS specs at this pin: $(spec_list_for_class "$CID")
-  (edit pool.conf if you genuinely want a new offspec for this character)"
-fi
-
-IDX="$(spec_index "$CID" "$TARGET_SPEC")"
-[[ -n "$IDX" ]] || die "'$TARGET_SPEC' is not a PremadeSpecName for $CLASS at this pin.
-  available: $(spec_list_for_class "$CID")"
+IDX="$(resolve_spec "$CHAR" "$CLASS" "$CID" "$HOME_SPEC" "$OFFSPECS" "$TARGET_SPEC")"
 
 GUID="$(char_guid "$CHAR")"
 [[ -n "$GUID" ]] || die "$CHAR has no character row — is the pool migrated yet?"

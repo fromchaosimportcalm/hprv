@@ -390,6 +390,7 @@ clear that bar.
 | `scripts/roster.conf` | The ten (auto-login), the 15 (summoned) and the bench, committed so they can be re-summoned |
 | `scripts/pins.conf` | Core + module SHAs. The reproducibility artifact |
 | `scripts/gear-pass.sh` | Force the spec roll, then gear |
+| `scripts/gear-rounds.conf` | Item 2's gear passes as three `hprv-spec.sh --batch` rounds, capped per group |
 | `scripts/roster-status.sh` | Level/class/gear from the DB, no login needed |
 | `tuning/` | BC-feel SQL. See below |
 | `custom/` | Custom NPC SQL (ID range 9100000–9100099) — `docs/custom-npcs.md` |
