@@ -26,7 +26,8 @@ a fact is unverified it says so.
 | Standing raid | 10 on your own account, **auto-login** — Bullwark + 9 bots |
 | Wider pool | 31 more on type-2 accounts, summoned by name for 25-man |
 | Ambient | 20 random bots, levels 25–80, live in the open world |
-| Gear tier | `AutoGearScoreLimit = 141` |
+| Gear tier | **Tier 4, reset 2026-09-25** — everything above ilvl 125 stripped from the 25, `AutoGearScoreLimit = 125` (ADR `0006`) |
+| Custom NPCs | Teleporter + free T4/T5/T6 and weapon vendors, Orgrimmar — `docs/custom-npcs.md` |
 | Furthest kill | Black Temple: Naj'entus, Supremus (2026-08-13) |
 | Furthest attempt | Illidari Council to 24%, lost to the 15-min berserk (2026-08-15) |
 
@@ -326,6 +327,8 @@ clear that bar.
 | `scripts/gear-pass.sh` | Force the spec roll, then gear |
 | `scripts/roster-status.sh` | Level/class/gear from the DB, no login needed |
 | `tuning/` | BC-feel SQL. See below |
+| `custom/` | Custom NPC SQL (ID range 9100000–9100099) — `docs/custom-npcs.md` |
+| `scripts/strip-gear-above-ilvl.sql` | Delete equipped gear above an ilvl across the roster — ADR `0006` |
 | `decisions/` | Standing rules only — history lives in the archive repo |
 
 On the box: `/mnt/hprv/server` (install), `/mnt/hprv/data` (extracted
@@ -354,7 +357,7 @@ module patch or a gear-tier drop, not a config edit.
 **Start it in Karazhan, not Black Temple.** BT is already gated on gear
 rather than on tuning: the Illidari Council's ~4.89M shared pool needs
 ~5,430 raid DPS to beat its 15-minute berserk, and at
-`AutoGearScoreLimit = 141` the raid does ~4,130 — 30% short of the
+`AutoGearScoreLimit = 141` (measured before the Tier 4 reset, ADR `0006`) the raid did ~4,130 — 30% short of the
 *nerfed* value the restore would undo. Raise the tier first; no HP
 restore lands in Black Temple until the Council dies inside its timer.
 ADR `0005`.

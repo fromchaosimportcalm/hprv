@@ -23,6 +23,10 @@ This directory is for decisions made **from 2026-08-13 onward**.
   Council's 15-minute berserk, the ~4.89M shared pool, the measured
   30–32% DPS shortfall, and the rule that no HP restore lands here until
   the enrage is beaten.
+- `0006` — reset the roster to Tier 4. Records the 354 pieces deleted
+  above ilvl 125, the backups, that `AutoGearScoreLimit` gates only
+  `autogear` and not drops, and that Bullwark's defence floor needs
+  re-itemizing before he tanks.
 
 ## Where the history went
 

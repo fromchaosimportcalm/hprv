@@ -413,7 +413,15 @@ finding belongs in an ADR.
 
 ## Moving the raid to a new tier
 
-`AiPlayerbot.AutoGearScoreLimit` sets the ceiling. Currently `141`.
+`AiPlayerbot.AutoGearScoreLimit` sets the ceiling. Currently `125` — the
+Tier 4 reset, ADR `0006`.
+
+**It is a ceiling on `autogear` and re-rolls, not on drops.** At this pin
+the module reads it only in the `autogear` / `autogear bis` whisper
+commands (`TrainerAction.cpp`), and `gear-pass.sh` derives its `init=`
+gearscore from it. Nothing in the loot or equip path looks at it, so bots
+equip what drops whatever it is set to. Raise it when you want automated
+gearing at the next tier, not to let progression happen.
 
 The order matters, and one step will bite you:
 

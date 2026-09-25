@@ -190,7 +190,7 @@ AiPlayerbot.RandomBotAutologin  = 1        # ambient world population ON
 AiPlayerbot.MinRandomBots       = 20
 AiPlayerbot.MaxRandomBots       = 20
 AiPlayerbot.MaxAddedBots        = 40       # 24-bot raid fits with room
-AiPlayerbot.AutoGearScoreLimit  = 141
+AiPlayerbot.AutoGearScoreLimit  = 125      # Tier 4 reset, ADR 0006
 AiPlayerbot.CombatStrategies    = "+threat,+cc"
 ```
 

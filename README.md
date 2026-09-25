@@ -18,6 +18,7 @@ human tanks TBC raids for a raid of bots.
 | Play tonight | `docs/raid-night.md` |
 | Fight a specific boss | `docs/encounters/` |
 | Set up the 40-character pool | `docs/pool.md` |
+| Use or add the custom NPCs (teleporter, gear vendors) | `docs/custom-npcs.md` |
 | Rebuild the server from nothing | `docs/build.md` |
 | Create the container | `docs/host-create.md` |
 

@@ -147,7 +147,11 @@ bit-for-bit unchanged.
 
 ### 4. Fix the under-tier veterans
 
-The tier is `AutoGearScoreLimit = 141` and most of the pool sits at
+> **Superseded 2026-09-25 by the Tier 4 reset (ADR `0006`):** the 25-body
+> roster was stripped of everything above ilvl 125 and the cap is now 125.
+> The table below is the pre-reset state.
+
+The tier was `AutoGearScoreLimit = 141` and most of the pool sat at
 134–139. Six do not, all of them veterans carrying gear from the old
 125-era limit:
 
