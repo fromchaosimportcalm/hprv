@@ -25,7 +25,7 @@ a fact is unverified it says so.
 | Module | `mod-playerbots/mod-playerbots`, pinned to the same merge |
 | Standing raid | 10 on your own account, **auto-login** — Bullwark + 9 bots |
 | Wider pool | 31 more on type-2 accounts, summoned by name for 25-man |
-| Ambient | 20 random bots, levels 25–80, live in the open world |
+| Ambient | 20 random bots, levels 1–70, Eastern Kingdoms / Kalimdor / Outland only (no Northrend, 2026-09-26) |
 | Gear tier | **Tier 4, reset 2026-09-25** — everything above ilvl 125 stripped from the 25, `AutoGearScoreLimit = 125` (ADR `0006`) |
 | Custom NPCs | Teleporter + free T4/T5/T6 and weapon vendors, Orgrimmar — `docs/custom-npcs.md` |
 | Furthest kill | Black Temple: Naj'entus, Supremus (2026-08-13) |
@@ -70,14 +70,23 @@ threat instead of by taunt — which is what you want from a plate body on
 adds anyway.
 
 **Any plate bot that arrives tank-specced needs this before it raids.**
-Genuinely applied to `Ararin` and `Crumm` — re-verified 2026-08-14.
+
+> **Nobody is converted right now (found 2026-09-26).**
+> `playerbots_db_store` is **empty**: 0 rows, `AUTO_INCREMENT` 692. The
+> binlogs show no write to it at all from 26 Aug onward, so every
+> override, including Ararin's and Crumm's, vanished between the
+> 2026-08-14 count and then. The cause is unproven. The prime suspect is
+> rule 2's `Randomize()` wipe during an `init=` pass. **Every
+> tank-specced plate bot is running full tank strategies from spec**
+> until it is re-whispered. Re-convert each one after its last gear pass
+> (TODO item 2), then assert the row exists.
 
 > **`Rechiw` is NOT converted, and this is live.** He has zero rows in
 > `playerbots_db_store` and knows Rune Tap, Mark of Blood and Vampiric
 > Blood, so `AiFactory` grants him the full tank set from spec every
 > login. He is on account 83, so this is a **25-man-only** fault — he is
 > not in the standing ten, and the only plate body that auto-logs-in
-> (`Ararin`) is genuinely converted. The whisper needs him summoned, so
+> (`Ararin`) was believed converted, but see the note above. The whisper needs him summoned, so
 > it can only land on a 25-man night. This file previously listed him as done: the
 > 2026-08-13 check asked whether anyone *carries* `+tank`, and a bot
 > with no rows answers "no" while running it from spec. **Absence of a
@@ -111,6 +120,13 @@ primitive is relative to the master. You always lead.
 
 ### 2. `co` writes a persistent, total override — and it is a trap
 
+**And any gear pass erases it.** `PlayerbotFactory::Randomize()` calls
+`PlayerbotRepository::Reset()`, which deletes **all** of that bot's
+`playerbots_db_store` rows (`co`, `nc`, `dead`, values). That covers
+every `init=` pass, and the auto-gear on login that fires on a level gap
+greater than 3. A conversion does not survive a gear pass, so re-whisper
+after every one.
+
 Any `co` carrying `+`, `-` or `~` calls `PlayerbotRepository::Save()`,
 which writes the bot's **entire current strategy list** to
 `playerbots_db_store`, not the delta. On every later add, the module
@@ -120,14 +136,15 @@ top.
 Two consequences:
 
 - **A bot that has ever taken a `co` is frozen at the strategies it had
-  when the whisper landed.** Re-roll its spec through a gear pass and it
-  logs in running the *previous* spec's strategies with no warning. Any
-  pass that changes a spec must first clear the override with `co !`, or
-  delete the bot's `playerbots_db_store` rows.
-- **Whatever raid you were standing in got baked in.** All **21** bots
-  carrying overrides have `+blacktemple` frozen into their saved lists
-  (21 of 21, re-counted 2026-08-14), because that is where they were
-  when the whisper landed.
+  when the whisper landed.** A spec change made any way other than
+  `init=` leaves it running the *previous* spec's strategies, with no
+  warning. An `init=` pass does not have this problem, because it wipes
+  the rows first (`PlayerbotFactory.cpp:697`, unconditional). That also
+  erases any conversion. `co !` before a pass is harmless but redundant.
+- **Whatever raid you were standing in got baked in.** On 2026-08-14 all
+  **21** bots carrying overrides had `+blacktemple` frozen into their
+  saved lists, because that is where they were when the whisper landed.
+  (Those rows are all gone now; see rule 1.)
   **This is now verified harmless** (2026-08-15).
   `PlayerbotAI::ApplyInstanceStrategies()` (`PlayerbotAI.cpp:1620`)
   removes *every* instance strategy from both engines and then adds back
@@ -198,11 +215,31 @@ cached at startup — it never touches disk, reports success, and changes
 nothing. `.reload config` is what re-reads the file. The pair avoids a
 ~6-minute restart; either alone is a silent no-op.
 
+**Except for list settings — removing an entry needs a restart.**
+`PlayerbotAIConfig::Initialize()` fills list options with `LoadList()`
+(`PlayerbotAIConfig.cpp:23`), which only `push_back`s and is never
+preceded by a `clear()`. A reload therefore *appends* the new list to the
+old one: dropping `571` from `RandomBotMaps` and reloading left the
+runtime list `0,1,530,571,0,1,530`, and a bot was teleported into Howling
+Fjord minutes later (2026-09-26). Adding an entry reloads fine; removing
+one does not. This applies to every `LoadList` option (`RandomBotMaps`,
+`RandomBotQuestIds`, `RandomBotSpellIds`, …).
+It also applies to lists the module builds for itself. After that reload,
+every `.playerbots rndbot <cmd> <name>` ran **twice** per bot
+(`[0/2]`, `[1/2]` in `Playerbots.log`), and after the restart it ran once
+(`[0/1]`). So after any reload, a restart is the only way back to a clean
+state.
+
 That restart cost is real: world init is ~5m41s, of which **311 seconds
 is the module parsing its own 102 KB `playerbots.conf`**. The systemd
 units are `Type=simple`, so `systemctl start` returns instantly while
 the server is still minutes from ready. Watch the journal, not the unit
 state.
+
+> **Re-measured 2026-09-26: `World Initialized In 0 Minutes 51 Seconds`**
+> on a warm restart, not ~5m41s. The earlier figure may be a cold-cache
+> start. Two data points only, so don't plan around either yet. Watch for
+> `ready...` in the journal.
 
 ### 6. Raid-frame flags are role assignments, and they persist
 

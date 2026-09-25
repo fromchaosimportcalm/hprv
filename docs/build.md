@@ -192,7 +192,23 @@ AiPlayerbot.MaxRandomBots       = 20
 AiPlayerbot.MaxAddedBots        = 40       # 24-bot raid fits with room
 AiPlayerbot.AutoGearScoreLimit  = 125      # Tier 4 reset, ADR 0006
 AiPlayerbot.CombatStrategies    = "+threat,+cc"
+AiPlayerbot.RandomBotMaxLevel   = 70       # cosmetic: the module clamps to MaxPlayerLevel anyway
+AiPlayerbot.RandomBotMaps       = 0,1,530  # no Northrend — keeps ambients in a TBC world
 ```
+
+**No Northrend, no 80s.** `RandomBotMaxLevel` is already clamped to
+`MaxPlayerLevel` (`PlayerbotAIConfig.cpp:392`), but bots that reached 80
+before the cap *stay* 80: `DowngradeMaxLevelBot = 0` makes `Randomize()`
+keep an over-cap bot's level. Setting `DowngradeMaxLevelBot = 1` is not
+the fix — it sends every ambient at or above the max back to level 1.
+Re-roll the stragglers individually instead:
+`.playerbots rndbot init <name>` (random level 1–70, re-geared).
+
+**Removing a map needs a restart.** The list is checked at teleport time,
+but a reload appends to it instead of replacing it (CLAUDE.md rule 5), so
+the removed map survives until the worldserver restarts. Bots already on
+a removed map stay there until they are teleported:
+`.playerbots rndbot teleport <name>`.
 
 **20, not 500.** The `.dist` default is 500 random bots, which produced a
 2.5-second idle world tick on 4 vCPU and almost certainly blocked client
