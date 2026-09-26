@@ -194,7 +194,19 @@ AiPlayerbot.AutoGearScoreLimit  = 125      # Tier 4 reset, ADR 0006
 AiPlayerbot.CombatStrategies    = "+threat,+cc"
 AiPlayerbot.RandomBotMaxLevel   = 70       # cosmetic: the module clamps to MaxPlayerLevel anyway
 AiPlayerbot.RandomBotMaps       = 0,1,530  # no Northrend — keeps ambients in a TBC world
+AiPlayerbot.LootNeedRollLevel   = 2        # upgrades roll NEED (dist: 1, downgrades need to greed)
+AiPlayerbot.LootGreedRollLevel  = 1        # everything else rolls GREED (dist: 0, i.e. pass)
 ```
+
+**Loot rolls (2026-09-26).** At the `.dist` values a bot never rolls need
+and never rolls greed: upgrades drop to greed, and everything else drops
+to pass (`LootRollAction.cpp`). "Upgrade" is the module's `item usage`
+value, meaning it scores higher than what's in the slot by the bot's own
+stat weights. `EQUIP`/`REPLACE` need a margin of `EquipUpgradeThreshold`
+(1.1), but `BAD_EQUIP`, which is better but under that margin, also rolls
+need. Greed covers anything with a sell price, including armour the bot
+can't wear. Tightening either rule is a module patch, not config. Under
+Master Loot or Free-for-All, bots always pass.
 
 **No Northrend, no 80s.** `RandomBotMaxLevel` is already clamped to
 `MaxPlayerLevel` (`PlayerbotAIConfig.cpp:392`), but bots that reached 80
