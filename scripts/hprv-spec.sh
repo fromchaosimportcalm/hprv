@@ -70,6 +70,8 @@ info() { printf '%s\n' "$*"; }
 set -a; . "$ENV_FILE"; set +a
 # shellcheck disable=SC1090
 . "$POOL_CONF"
+# shellcheck disable=SC1091
+. "${SCRIPT_DIR}/defence.conf"
 
 DB_CHARS="${ACORE_DB_CHARACTERS:-acore_characters}"
 DB_PB="${ACORE_DB_PLAYERBOTS:-acore_playerbots}"
@@ -192,29 +194,11 @@ clear_co_override() {
 }
 
 defence_skill() {
-    # Same shape as roster-status.sh: defence RATING off equipped items,
-    # converted to skill. 490 is crit-immunity vs a level 73 boss.
-    local g="$1" rating
-    rating=$(mysql_q "
-      SELECT COALESCE(SUM(
-        CASE WHEN t.stat_type1=12 THEN t.stat_value1 ELSE 0 END +
-        CASE WHEN t.stat_type2=12 THEN t.stat_value2 ELSE 0 END +
-        CASE WHEN t.stat_type3=12 THEN t.stat_value3 ELSE 0 END +
-        CASE WHEN t.stat_type4=12 THEN t.stat_value4 ELSE 0 END +
-        CASE WHEN t.stat_type5=12 THEN t.stat_value5 ELSE 0 END +
-        CASE WHEN t.stat_type6=12 THEN t.stat_value6 ELSE 0 END +
-        CASE WHEN t.stat_type7=12 THEN t.stat_value7 ELSE 0 END +
-        CASE WHEN t.stat_type8=12 THEN t.stat_value8 ELSE 0 END +
-        CASE WHEN t.stat_type9=12 THEN t.stat_value9 ELSE 0 END +
-        CASE WHEN t.stat_type10=12 THEN t.stat_value10 ELSE 0 END),0)
-      FROM ${DB_CHARS}.character_inventory i
-      JOIN ${DB_CHARS}.item_instance ii ON ii.guid=i.item
-      JOIN ${ACORE_DB_WORLD:-acore_world}.item_template t ON t.entry=ii.itemEntry
-      WHERE i.guid=${g} AND i.bag=0 AND i.slot < 19;")
-    rating="${rating:-0}"
-    # MUST match roster-status.sh's defence_line() or the two reports will
-    # disagree about whether a tank is crit-immune.
-    awk -v r="$rating" 'BEGIN{printf "%d", 350 + int(r/2.37)}'
+    # Items AND enchants/gems, via defence.conf — shared with
+    # roster-status.sh so the two reports cannot disagree.
+    local g="$1" items enchants
+    read -r items enchants < <(mysql_q "$(defence_rating_sql "$DB_CHARS" "${ACORE_DB_WORLD:-acore_world}" "$g")")
+    defence_skill_from_rating "$(( ${items:-0} + ${enchants:-0} ))"
 }
 
 is_tank_spec() {

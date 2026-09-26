@@ -7,10 +7,11 @@ Professions (5) go after gear, because a gear pass may reset them.
 
 Measured on the box 2026-09-26 unless marked otherwise.
 
-> **Start here next session: item 2 (gear), ready to run in game.**
-> `hprv-spec.sh --batch gear-rounds.conf <1|2|3>`, paste, `--restore`,
-> next round. Then one restart, Ararin's conversion, and Bullwark's
-> defence. Nothing on the box is mid-change: no forced table is pending.
+> **Start here next session: item 2's closing steps.** All 24 bots are
+> geared and specced, and Ararin is converted. Left: one server stop that
+> runs `raid-layout.sql` and `fix-tank-defence.sql` and then restarts
+> (rule 5), and Bullwark's enchants and gems in game
+> (`docs/tank-defence.md`). No forced table is pending.
 
 | # | Item | Kind | State |
 |---|---|---|---|
@@ -266,19 +267,22 @@ the 15 are already Gruul-ready and waiting for them.
   have restored the 2026-08-13 config over this week's map/level fix)
 - **Every pass wipes `co`/`nc`.** Re-convert Ararin (paladin pair) after
   round 2 and verify the row contents. Crumm is frost and needs nothing
-- [ ] Round 1: summon Tanke, Irntifumm, Gerina, then batch 1, paste, `--restore`
-- [ ] Round 2: summon the eight on the header line, batch 2, paste, `--restore`,
-      then Ararin's two whispers and the row check
-- [ ] Round 3: summon Zaene, Dehme, Vestanza, batch 3, paste, `--restore`
-- [ ] **Restart once after round 3.** Three reloads leave duplicated list
-      settings (rule 5), and only a restart clears them
-- [ ] `.save`, then `roster-status.sh`: every spec lands (this also heals the
-      `ACTUAL-SPEC` regression), and the slot counts come back to 17
-- [ ] **Bullwark by hand.** He is never re-rolled. His gear is snapshotted
-      in `docs/bullwark-gear.md` (2026-09-26): 17 slots, ilvl 110–130, **no
-      enchants or gems on anything**, defence **474, 16 short of 490**.
-      Close it with defence enchants and gems before swapping any pieces.
-      Ararin needs a defence top-up after his pass too (`hprv-spec.sh Ararin --show`)
+- [x] Rounds 1–3 run 2026-09-26, plus Fimur on his own (`init=183`). All 24
+      landed on the wanted spec (the `ACTUAL-SPEC` regression is healed for
+      the raid) and the caps held exactly: the ten max ilvl 115 (score 168),
+      the 15 max 125 (183). 16 of 17 slots is a two-hander's empty off-hand,
+      or Crumm's relic (only one TBC sigil exists at ilvl 115 or under)
+- [x] Ararin converted after round 2. His first `nc` whisper didn't land
+      (`tank assist` survived) and was re-sent. Both rows are verified clean
+- [x] Party layout for the 10 and the 25: `docs/raid-layout.md`. It persists
+      server-side; `scripts/raid-layout.sql` restores it (dry-run clean)
+- [ ] **One server stop:** `raid-layout.sql`, then `fix-tank-defence.sql`
+      (Ararin to 509, dry-run clean), then start. This is also the rule-5
+      restart after four rounds of reloads. `hprv-spec.sh Ararin --show` → 509
+- [ ] **Bullwark by hand (Clinton, in game).** 474 → 504 on five enchants,
+      → 521 with gems. The `.additem` list is in `docs/tank-defence.md`.
+      Then refresh `docs/bullwark-gear.md`: he now wears Tankatronic Goggles
+      and the Goblin Rocket Launcher, and the snapshot predates both
 - [ ] Fimur, the only level-1 character in the 25, auto-levels and gears on
       first login behind Bullwark. Then give him an `init=183` pass,
       because the auto-gear is uncapped (`ITEM_QUALITY_LEGENDARY`). The

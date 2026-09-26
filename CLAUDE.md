@@ -394,6 +394,8 @@ clear that bar.
 | `scripts/roster-status.sh` | Level/class/gear from the DB, no login needed |
 | `tuning/` | BC-feel SQL. See below |
 | `custom/` | Custom NPC SQL (ID range 9100000–9100099) — `docs/custom-npcs.md` |
+| `docs/raid-layout.md` | Party layout for the 10 and the 25, why it persists, audit and restore (`scripts/raid-layout.sql`) |
+| `docs/tank-defence.md` | Enchants, gems and gear to crit-cap Bullwark and Ararin (`scripts/fix-tank-defence.sql`). Defence counting incl. enchants/gems: `scripts/defence.conf` |
 | `docs/bullwark-gear.md` | Bullwark's hand-picked gear, snapshotted, with restore lines. He is never `init=`'d |
 | `scripts/swap-standing-ten.sql` | The 2026-09-26 standing-ten swap. It's the pattern for any future swap (ADR `0007`) |
 | `TODO.md` | The working list: items 1–7, with status |

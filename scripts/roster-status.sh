@@ -38,6 +38,8 @@ die() { printf 'error: %s\n' "$*" >&2; exit 1; }
 set -a; . "$HPRV_ENV_FILE"; set +a
 # shellcheck disable=SC1090
 . "$HPRV_ROSTER"
+# shellcheck disable=SC1091
+. "${SCRIPT_DIR}/defence.conf"
 
 DB_CHARS="${ACORE_DB_CHARACTERS:-acore_characters}"
 DB_PB="${ACORE_DB_PLAYERBOTS:-acore_playerbots}"
@@ -147,32 +149,20 @@ report_one() {
 # getting crushed within one pull, whereas a bot silently drops under the
 # cap and just starts dying. See decisions/0010.
 defence_line() {  # defence_line <character name>
-    local who="$1" defrtg skill
+    local who="$1" g items enchants defrtg skill
     [[ -n "$who" ]] || return 0
-    defrtg="$(mysql_q "SELECT IFNULL(SUM(
-        CASE WHEN t.stat_type1=12 THEN t.stat_value1 ELSE 0 END +
-        CASE WHEN t.stat_type2=12 THEN t.stat_value2 ELSE 0 END +
-        CASE WHEN t.stat_type3=12 THEN t.stat_value3 ELSE 0 END +
-        CASE WHEN t.stat_type4=12 THEN t.stat_value4 ELSE 0 END +
-        CASE WHEN t.stat_type5=12 THEN t.stat_value5 ELSE 0 END +
-        CASE WHEN t.stat_type6=12 THEN t.stat_value6 ELSE 0 END +
-        CASE WHEN t.stat_type7=12 THEN t.stat_value7 ELSE 0 END +
-        CASE WHEN t.stat_type8=12 THEN t.stat_value8 ELSE 0 END +
-        CASE WHEN t.stat_type9=12 THEN t.stat_value9 ELSE 0 END +
-        CASE WHEN t.stat_type10=12 THEN t.stat_value10 ELSE 0 END),0)
-      FROM ${DB_CHARS}.character_inventory i
-      JOIN ${DB_CHARS}.item_instance ii ON ii.guid=i.item
-      JOIN ${ACORE_DB_WORLD:-acore_world}.item_template t ON t.entry=ii.itemEntry
-      JOIN ${DB_CHARS}.characters c ON c.guid=i.guid
-     WHERE i.bag=0 AND i.slot<19 AND c.name='${who}';")"
-    defrtg="${defrtg:-0}"
-    skill=$(awk -v r="$defrtg" 'BEGIN{printf "%d", 350 + int(r/2.37)}')
+    g="$(mysql_q "SELECT guid FROM ${DB_CHARS}.characters WHERE name='${who}';")"
+    [[ -n "$g" ]] || return 0
+    # Items AND enchants/gems (defence.conf). Items alone read low.
+    read -r items enchants < <(mysql_q "$(defence_rating_sql "$DB_CHARS" "${ACORE_DB_WORLD:-acore_world}" "$g")")
+    defrtg=$(( ${items:-0} + ${enchants:-0} ))
+    skill="$(defence_skill_from_rating "$defrtg")"
     if [[ "$skill" -ge 490 ]]; then
-        printf '  tank defence: %s rating -> %s skill (crit-immune vs lvl 73, needs 490)\n' \
-            "$defrtg" "$skill"
+        printf '  tank defence: %s rating (%s items + %s enchants/gems) -> %s skill (crit-immune vs lvl 73, needs 490)\n' \
+            "$defrtg" "${items:-0}" "${enchants:-0}" "$skill"
     else
-        printf '  tank defence: %s rating -> %s skill  ** UNDER 490 — boss will crit **\n' \
-            "$defrtg" "$skill"
+        printf '  tank defence: %s rating (%s items + %s enchants/gems) -> %s skill  ** UNDER 490 — boss will crit **\n' \
+            "$defrtg" "${items:-0}" "${enchants:-0}" "$skill"
     fi
 
     # Tonight's failure mode (2026-08-11): EquipUpgradesPacketAction fires

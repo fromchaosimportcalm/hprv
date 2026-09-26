@@ -1,104 +1,177 @@
--- HPRV — restore Ararin to crit-immunity
+-- HPRV — put Ararin over the 490 defence floor (docs/tank-defence.md)
 --
--- RUN WITH THE CHARACTER OFFLINE. `.playerbots bot remove Ararin` first,
--- or the in-memory copy overwrites this on the next save and it will look
--- like the change silently did nothing.
+-- RUN WITH THE SERVER STOPPED. Two reasons:
+--   * the in-memory character is written back over any change made while
+--     he is loaded, and it will look like this silently did nothing
+--   * new item guids are taken from MAX(guid); a running server allocates
+--     from its own counter and could collide
 --
--- ---------------------------------------------------------------------
--- THE PROBLEM, AND WHY IT RECURS
---
--- 490 defence skill is crit-immunity against a level 73 boss.
---   skill = 350 (base at 70) + floor(defence_rating / 2.37)
--- so 490 needs 332 defence rating off equipped gear.
---
--- StatsWeightCalculator scores raw stats and has no concept of defence
--- skill or its cap, so every automated pass fills trinkets, neck and
--- shield with zero-defence pieces. Measured 2026-08-13: Ararin had
--- 300 rating (476 skill) equipped while carrying a 32-rating trinket in
--- his BAGS. He off-tanked Black Temple crittable.
---
--- This is not fixable by configuration and it comes back after any
--- init= pass. Re-run this file whenever that happens.
+-- Re-run after EVERY init= pass on Ararin: the pass re-rolls his gear,
+-- and StatsWeightCalculator ignores defence, so it lands him back under.
+-- It is idempotent: a slot already holding the wanted item is skipped,
+-- and the enchants are simply set again.
 --
 -- ---------------------------------------------------------------------
--- THE SWAP
+-- WHAT IT DOES (measured 2026-09-26, after the item 2 pass)
 --
---   trinket slot 12:  Argussian Compass (0 def)  ->  Brooch of the
---                     Immortal King (32 def, already in his bags)
+-- He was at 251 rating (220 items + 31 enchants) -> 455 skill. Four slots
+-- held pure-DPS pieces with zero defence. Each is replaced with a new item
+-- written straight into the equip slot, and the displaced piece is parked
+-- in the BANK. That matters: bots re-equip from their BAGS on their own
+-- scoring, which ignores defence, so anything left in a bag comes back.
+-- The bank is invisible to that scan.
 --
---   The displaced compass goes to the BANK, not a bag. This matters:
---   bots re-equip from bags on their own scoring, which ignores defence,
---   so a competing item left in a bag will simply come back. Parking it
---   in the bank is the fix that holds.
+--   slot 5  waist    Girdle of Valorous Deeds     29253  +24 def  +37 sta
+--   slot 7  feet     Boots of the Righteous Path  29254  +23 def  +34 sta
+--   slot 8  wrists   Bracers of Dignity           29252  +21 def  +30 sta
+--   slot 12 trinket  Adamantine Figurine          27891  +32 def
 --
---   300 - 0 + 32 = 332 rating -> 490 skill. Exactly the floor.
+-- Then two permanent enchants (enchant id from SpellItemEnchantment.dbc):
 --
--- For margin, follow up with the two .additem lines at the bottom.
+--   slot 4  chest    Enchant Chest - Defense        1951  +16 def  (replaces +150 health)
+--   slot 8  wrists   Enchant Bracer - Major Defense 2648  +12 def
+--
+-- Expected: 251 + 100 + 28 = 379 rating -> 509 skill.
 -- ---------------------------------------------------------------------
 
--- Verify he is offline. This MUST return 0 before you continue.
-SELECT online AS must_be_zero
-  FROM acore_characters.characters WHERE name = 'Ararin';
+USE acore_characters;
 
--- Park the zero-defence trinket in the first free bank slot (39-66).
-UPDATE acore_characters.character_inventory i
-  JOIN acore_characters.characters c ON c.guid = i.guid
-   SET i.bag = 0, i.slot = 41
- WHERE c.name = 'Ararin' AND i.item = 24503;      -- Argussian Compass
+START TRANSACTION;
 
--- Equip the defence trinket in the slot it just vacated.
-UPDATE acore_characters.character_inventory i
-  JOIN acore_characters.characters c ON c.guid = i.guid
-   SET i.bag = 0, i.slot = 12
- WHERE c.name = 'Ararin' AND i.item = 22610;      -- Brooch of the Immortal King
+-- Guards: a false condition raises ERROR 1242 ("Subquery returns more
+-- than 1 row"), the client stops, and the open transaction rolls back on
+-- disconnect. Same pattern as swap-standing-ten.sql.
+SELECT IF(COUNT(*) = 0, 'ok: nobody online', (SELECT 1 UNION SELECT 2)) AS precheck_online
+  FROM acore_characters.characters WHERE online = 1;
 
--- ---------------------------------------------------------------------
--- VERIFY — expect 332 rating / 490 skill.
--- ---------------------------------------------------------------------
-SELECT SUM(
-    CASE WHEN t.stat_type1=12  THEN t.stat_value1  ELSE 0 END +
-    CASE WHEN t.stat_type2=12  THEN t.stat_value2  ELSE 0 END +
-    CASE WHEN t.stat_type3=12  THEN t.stat_value3  ELSE 0 END +
-    CASE WHEN t.stat_type4=12  THEN t.stat_value4  ELSE 0 END +
-    CASE WHEN t.stat_type5=12  THEN t.stat_value5  ELSE 0 END +
-    CASE WHEN t.stat_type6=12  THEN t.stat_value6  ELSE 0 END +
-    CASE WHEN t.stat_type7=12  THEN t.stat_value7  ELSE 0 END +
-    CASE WHEN t.stat_type8=12  THEN t.stat_value8  ELSE 0 END +
-    CASE WHEN t.stat_type9=12  THEN t.stat_value9  ELSE 0 END +
-    CASE WHEN t.stat_type10=12 THEN t.stat_value10 ELSE 0 END) AS defence_rating,
-  350 + FLOOR(SUM(
-    CASE WHEN t.stat_type1=12  THEN t.stat_value1  ELSE 0 END +
-    CASE WHEN t.stat_type2=12  THEN t.stat_value2  ELSE 0 END +
-    CASE WHEN t.stat_type3=12  THEN t.stat_value3  ELSE 0 END +
-    CASE WHEN t.stat_type4=12  THEN t.stat_value4  ELSE 0 END +
-    CASE WHEN t.stat_type5=12  THEN t.stat_value5  ELSE 0 END +
-    CASE WHEN t.stat_type6=12  THEN t.stat_value6  ELSE 0 END +
-    CASE WHEN t.stat_type7=12  THEN t.stat_value7  ELSE 0 END +
-    CASE WHEN t.stat_type8=12  THEN t.stat_value8  ELSE 0 END +
-    CASE WHEN t.stat_type9=12  THEN t.stat_value9  ELSE 0 END +
-    CASE WHEN t.stat_type10=12 THEN t.stat_value10 ELSE 0 END) / 2.37) AS defence_skill
-FROM acore_characters.character_inventory i
-JOIN acore_characters.item_instance ii ON ii.guid = i.item
-JOIN acore_world.item_template t ON t.entry = ii.itemEntry
-JOIN acore_characters.characters c ON c.guid = i.guid
-WHERE c.name = 'Ararin' AND i.bag = 0 AND i.slot < 19;
+SET @g = (SELECT guid FROM acore_characters.characters WHERE name = 'Ararin');
+SELECT IF(@g IS NOT NULL, 'ok: Ararin found', (SELECT 1 UNION SELECT 2)) AS precheck_char;
+
+SET @next = (SELECT MAX(guid) FROM acore_characters.item_instance);
+SET @zero = REPEAT('0 ', 36);   -- 12 enchant slots x (id duration charges)
 
 -- ---------------------------------------------------------------------
--- MARGIN — in game, after re-adding him. Target Ararin, then:
---
---     .additem 32268      -- Myrmidon's Treads      ilvl 141, +30 def
---     .additem 32279      -- The Seeker's Wristguards ilvl 141, +21 def
---
--- He currently wears ilvl 115 boots and bracers carrying ZERO defence, so
--- these are large raw-stat upgrades as well as defence ones — which is
--- why he should auto-equip them despite the calculator ignoring defence.
--- That is the trick: beat the scorer on its own terms rather than fight
--- it. If he does not take them within a minute, place them by hand with
--- the same UPDATE pattern above (boots = slot 7, bracers = slot 8).
---
--- With all three: 383 rating -> 511 skill, a 21-point margin over the
--- floor instead of landing exactly on it.
---
--- Then `.save` before trusting roster-status.sh or hprv-spec.sh --show;
--- both read last-saved state.
+-- One block per slot. Identical apart from the first SET line.
 -- ---------------------------------------------------------------------
+
+-- Waist
+SET @slot = 5, @want = 29253, @old = NULL, @oldentry = NULL, @bank = NULL;
+SELECT i.item, ii.itemEntry INTO @old, @oldentry
+  FROM acore_characters.character_inventory i
+  JOIN acore_characters.item_instance ii ON ii.guid = i.item
+ WHERE i.guid = @g AND i.bag = 0 AND i.slot = @slot;
+SET @do = (@oldentry IS NULL OR @oldentry <> @want);
+WITH RECURSIVE n(x) AS (SELECT 39 UNION ALL SELECT x + 1 FROM n WHERE x < 66)
+SELECT MIN(x) INTO @bank FROM n
+ WHERE x NOT IN (SELECT slot FROM acore_characters.character_inventory WHERE guid = @g AND bag = 0);
+SELECT IF(NOT @do OR @old IS NULL OR @bank IS NOT NULL, 'ok: waist', (SELECT 1 UNION SELECT 2)) AS check_bank_space;
+UPDATE acore_characters.character_inventory SET slot = @bank WHERE item = @old AND @do;
+SET @next = @next + 1;
+INSERT INTO acore_characters.item_instance
+       (guid, itemEntry, owner_guid, creatorGuid, giftCreatorGuid, count, duration, charges, flags, enchantments, randomPropertyId, durability, playedTime, text)
+SELECT @next, @want, @g, 0, 0, 1, 0, '0 0 0 0 0 ', 1, @zero, 0, t.MaxDurability, 0, NULL
+  FROM acore_world.item_template t WHERE t.entry = @want AND @do;
+INSERT INTO acore_characters.character_inventory (guid, bag, slot, item)
+SELECT @g, 0, @slot, @next FROM DUAL WHERE @do;
+
+-- Feet
+SET @slot = 7, @want = 29254, @old = NULL, @oldentry = NULL, @bank = NULL;
+SELECT i.item, ii.itemEntry INTO @old, @oldentry
+  FROM acore_characters.character_inventory i
+  JOIN acore_characters.item_instance ii ON ii.guid = i.item
+ WHERE i.guid = @g AND i.bag = 0 AND i.slot = @slot;
+SET @do = (@oldentry IS NULL OR @oldentry <> @want);
+WITH RECURSIVE n(x) AS (SELECT 39 UNION ALL SELECT x + 1 FROM n WHERE x < 66)
+SELECT MIN(x) INTO @bank FROM n
+ WHERE x NOT IN (SELECT slot FROM acore_characters.character_inventory WHERE guid = @g AND bag = 0);
+SELECT IF(NOT @do OR @old IS NULL OR @bank IS NOT NULL, 'ok: feet', (SELECT 1 UNION SELECT 2)) AS check_bank_space;
+UPDATE acore_characters.character_inventory SET slot = @bank WHERE item = @old AND @do;
+SET @next = @next + 1;
+INSERT INTO acore_characters.item_instance
+       (guid, itemEntry, owner_guid, creatorGuid, giftCreatorGuid, count, duration, charges, flags, enchantments, randomPropertyId, durability, playedTime, text)
+SELECT @next, @want, @g, 0, 0, 1, 0, '0 0 0 0 0 ', 1, @zero, 0, t.MaxDurability, 0, NULL
+  FROM acore_world.item_template t WHERE t.entry = @want AND @do;
+INSERT INTO acore_characters.character_inventory (guid, bag, slot, item)
+SELECT @g, 0, @slot, @next FROM DUAL WHERE @do;
+
+-- Wrists
+SET @slot = 8, @want = 29252, @old = NULL, @oldentry = NULL, @bank = NULL;
+SELECT i.item, ii.itemEntry INTO @old, @oldentry
+  FROM acore_characters.character_inventory i
+  JOIN acore_characters.item_instance ii ON ii.guid = i.item
+ WHERE i.guid = @g AND i.bag = 0 AND i.slot = @slot;
+SET @do = (@oldentry IS NULL OR @oldentry <> @want);
+WITH RECURSIVE n(x) AS (SELECT 39 UNION ALL SELECT x + 1 FROM n WHERE x < 66)
+SELECT MIN(x) INTO @bank FROM n
+ WHERE x NOT IN (SELECT slot FROM acore_characters.character_inventory WHERE guid = @g AND bag = 0);
+SELECT IF(NOT @do OR @old IS NULL OR @bank IS NOT NULL, 'ok: wrists', (SELECT 1 UNION SELECT 2)) AS check_bank_space;
+UPDATE acore_characters.character_inventory SET slot = @bank WHERE item = @old AND @do;
+SET @next = @next + 1;
+INSERT INTO acore_characters.item_instance
+       (guid, itemEntry, owner_guid, creatorGuid, giftCreatorGuid, count, duration, charges, flags, enchantments, randomPropertyId, durability, playedTime, text)
+SELECT @next, @want, @g, 0, 0, 1, 0, '0 0 0 0 0 ', 1, @zero, 0, t.MaxDurability, 0, NULL
+  FROM acore_world.item_template t WHERE t.entry = @want AND @do;
+INSERT INTO acore_characters.character_inventory (guid, bag, slot, item)
+SELECT @g, 0, @slot, @next FROM DUAL WHERE @do;
+
+-- Trinket (the first slot, 12)
+SET @slot = 12, @want = 27891, @old = NULL, @oldentry = NULL, @bank = NULL;
+SELECT i.item, ii.itemEntry INTO @old, @oldentry
+  FROM acore_characters.character_inventory i
+  JOIN acore_characters.item_instance ii ON ii.guid = i.item
+ WHERE i.guid = @g AND i.bag = 0 AND i.slot = @slot;
+SET @do = (@oldentry IS NULL OR @oldentry <> @want);
+WITH RECURSIVE n(x) AS (SELECT 39 UNION ALL SELECT x + 1 FROM n WHERE x < 66)
+SELECT MIN(x) INTO @bank FROM n
+ WHERE x NOT IN (SELECT slot FROM acore_characters.character_inventory WHERE guid = @g AND bag = 0);
+SELECT IF(NOT @do OR @old IS NULL OR @bank IS NOT NULL, 'ok: trinket', (SELECT 1 UNION SELECT 2)) AS check_bank_space;
+UPDATE acore_characters.character_inventory SET slot = @bank WHERE item = @old AND @do;
+SET @next = @next + 1;
+INSERT INTO acore_characters.item_instance
+       (guid, itemEntry, owner_guid, creatorGuid, giftCreatorGuid, count, duration, charges, flags, enchantments, randomPropertyId, durability, playedTime, text)
+SELECT @next, @want, @g, 0, 0, 1, 0, '0 0 0 0 0 ', 1, @zero, 0, t.MaxDurability, 0, NULL
+  FROM acore_world.item_template t WHERE t.entry = @want AND @do;
+INSERT INTO acore_characters.character_inventory (guid, bag, slot, item)
+SELECT @g, 0, @slot, @next FROM DUAL WHERE @do;
+
+-- ---------------------------------------------------------------------
+-- Permanent enchants: replace the first token (slot 0's enchant id).
+-- ---------------------------------------------------------------------
+UPDATE acore_characters.item_instance ii
+  JOIN acore_characters.character_inventory i ON i.item = ii.guid
+   SET ii.enchantments = CONCAT('1951', SUBSTRING(ii.enchantments, LOCATE(' ', ii.enchantments)))
+ WHERE i.guid = @g AND i.bag = 0 AND i.slot = 4;      -- chest: Enchant Chest - Defense
+
+UPDATE acore_characters.item_instance ii
+  JOIN acore_characters.character_inventory i ON i.item = ii.guid
+   SET ii.enchantments = CONCAT('2648', SUBSTRING(ii.enchantments, LOCATE(' ', ii.enchantments)))
+ WHERE i.guid = @g AND i.bag = 0 AND i.slot = 8;      -- wrists: Enchant Bracer - Major Defense
+
+-- ---------------------------------------------------------------------
+-- Verify inside the transaction. Every line must read ok.
+-- ---------------------------------------------------------------------
+SELECT IF(COUNT(*) = 4, 'ok: four defence pieces equipped', (SELECT 1 UNION SELECT 2)) AS check_items
+  FROM acore_characters.character_inventory i
+  JOIN acore_characters.item_instance ii ON ii.guid = i.item
+ WHERE i.guid = @g AND i.bag = 0
+   AND ((i.slot = 5 AND ii.itemEntry = 29253) OR (i.slot = 7 AND ii.itemEntry = 29254)
+     OR (i.slot = 8 AND ii.itemEntry = 29252) OR (i.slot = 12 AND ii.itemEntry = 27891));
+
+SELECT IF(COUNT(*) = 2, 'ok: both enchants set', (SELECT 1 UNION SELECT 2)) AS check_enchants
+  FROM acore_characters.character_inventory i
+  JOIN acore_characters.item_instance ii ON ii.guid = i.item
+ WHERE i.guid = @g AND i.bag = 0
+   AND ((i.slot = 4 AND ii.enchantments LIKE '1951 %') OR (i.slot = 8 AND ii.enchantments LIKE '2648 %'));
+
+SELECT i.slot, ii.itemEntry, t.name, SUBSTRING_INDEX(ii.enchantments, ' ', 1) AS perm_enchant
+  FROM acore_characters.character_inventory i
+  JOIN acore_characters.item_instance ii ON ii.guid = i.item
+  JOIN acore_world.item_template t ON t.entry = ii.itemEntry
+ WHERE i.guid = @g AND i.bag = 0 AND (i.slot IN (4, 5, 7, 8, 12) OR i.slot BETWEEN 39 AND 66)
+ ORDER BY i.slot;
+
+COMMIT;
+
+-- Then, still with the server stopped:
+--     /opt/hprv/scripts/hprv-spec.sh Ararin --show     # expect defence 509
+-- It counts enchants and gems now (defence.conf), so it is the right check.
