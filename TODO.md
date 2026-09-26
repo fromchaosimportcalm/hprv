@@ -7,11 +7,10 @@ Professions (5) go after gear, because a gear pass may reset them.
 
 Measured on the box 2026-09-26 unless marked otherwise.
 
-> **Start here next session: item 2's closing steps.** All 24 bots are
-> geared and specced, and Ararin is converted. Left: one server stop that
-> runs `raid-layout.sql` and `fix-tank-defence.sql` and then restarts
-> (rule 5), and Bullwark's enchants and gems in game
-> (`docs/tank-defence.md`). No forced table is pending.
+> **Item 2's closing steps are done (2026-09-26).** All 24 bots are
+> geared and specced. Ararin is at 509 defence and Bullwark at 535, and
+> the raid layout is restored. No forced table is pending. What's left
+> of item 2 is the open boxes below.
 
 | # | Item | Kind | State |
 |---|---|---|---|
@@ -276,13 +275,14 @@ the 15 are already Gruul-ready and waiting for them.
       (`tank assist` survived) and was re-sent. Both rows are verified clean
 - [x] Party layout for the 10 and the 25: `docs/raid-layout.md`. It persists
       server-side; `scripts/raid-layout.sql` restores it (dry-run clean)
-- [ ] **One server stop:** `raid-layout.sql`, then `fix-tank-defence.sql`
-      (Ararin to 509, dry-run clean), then start. This is also the rule-5
-      restart after four rounds of reloads. `hprv-spec.sh Ararin --show` → 509
-- [ ] **Bullwark by hand (Clinton, in game).** 474 → 504 on five enchants,
-      → 521 with gems. The `.additem` list is in `docs/tank-defence.md`.
-      Then refresh `docs/bullwark-gear.md`: he now wears Tankatronic Goggles
-      and the Goblin Rocket Launcher, and the snapshot predates both
+- [x] **One server stop, done 2026-09-26.** `raid-layout.sql` (all 25 in
+      place), then `fix-tank-defence.sql`, then start. `hprv-spec.sh Ararin
+      --show` reads 509. The same stop moved the four vendors onto flat
+      ground (`docs/custom-npcs.md`). Backups are in `/opt/hprv/backups/`,
+      under `pre-ararin-vendors-*`. World init took 37 s
+- [x] **Bullwark by hand, done 2026-09-26.** At 535 with all ten enchants,
+      17 gems and the Adamantine Figurine. `docs/bullwark-gear.md` is
+      re-snapshotted
 - [ ] Fimur, the only level-1 character in the 25, auto-levels and gears on
       first login behind Bullwark. Then give him an `init=183` pass,
       because the auto-gear is uncapped (`ITEM_QUALITY_LEGENDARY`). The

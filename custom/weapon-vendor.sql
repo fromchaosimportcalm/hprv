@@ -176,7 +176,8 @@ UPDATE `acore_world`.`item_template` SET `BuyPrice` = 0 WHERE `entry` IN (
   30909, 32375, 32368, 32257, 32330);
 
 -- ---------------------------------------------------------------------
--- SPAWN — north end of the vendor row, west of the Porter.
+-- SPAWN — north end of the vendor row, south-west of the Porter. The
+-- row and how its z values were measured: tier-vendors.sql.
 -- ---------------------------------------------------------------------
 
 DELETE FROM `acore_world`.`creature` WHERE `id` = @NPC OR `guid` = @NPC;
@@ -187,4 +188,4 @@ INSERT INTO `acore_world`.`creature`
    `spawntimesecs`, `wander_distance`, `currentwaypoint`, `curhealth`, `curmana`,
    `MovementType`, `npcflag`, `unit_flags`, `dynamicflags`, `ScriptName`, `CreateObject`, `Comment`)
 VALUES
-  (@NPC, @NPC, 1, 0, 0, 1, 1, 0, 1632.3, -4399.3, 16.1056, 3.06538, 300, 0, 0, 12600, 0, 0, 0, 0, 0, '', 0, 'HPRV weapon vendor - Orgrimmar');
+  (@NPC, @NPC, 1, 0, 0, 1, 1, 0, 1634.5, -4406.5, 16.41, 3.06538, 300, 0, 0, 12600, 0, 0, 0, 0, 0, '', 0, 'HPRV weapon vendor - Orgrimmar');

@@ -134,8 +134,9 @@ it's safe to re-run.
 
 Dry-run against the live DB on 2026-09-26, then rolled back: every check
 passed, and the in-transaction count read **320 items + 59 enchants = 379
-→ 509**, as planned. The next restart (item 2's rule-5 restart) is the
-window. Then run `hprv-spec.sh Ararin --show` and expect 509.
+→ 509**, as planned. **Applied for real on 2026-09-26** in the item 2
+restart. `hprv-spec.sh Ararin --show` reads 509, and the four displaced
+pieces are in his bank.
 
 **Any future `init=` pass on Ararin undoes all of this.** Re-run the fix
 after every one, exactly as the rule-1 conversion is redone.

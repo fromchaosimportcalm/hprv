@@ -1,7 +1,11 @@
 # Custom NPCs
 
 Four NPCs added 2026-09-25, all SQL-only (no C++, no rebuild), all
-standing together in **Orgrimmar, Valley of Strength**. Source is
+standing together in **Orgrimmar, Valley of Strength**. The four vendors
+stand in a row on the flat ground just south-west of the Porter, all
+facing west like her. They were moved there on 2026-09-26, off a ramp
+where one shared z had left Torvek floating and Oriel sunk. How their z
+values were measured: `tier-vendors.sql`. Source is
 `custom/`, applied by hand with `mysql acore_world < custom/<file>.sql`
 on the box. Every file is idempotent.
 

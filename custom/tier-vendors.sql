@@ -88,11 +88,16 @@ SELECT @T6, ROW_NUMBER() OVER (ORDER BY `itemset`, `ItemLevel`, `InventoryType`,
  WHERE `itemset` BETWEEN 668 AND 684;
 
 -- ---------------------------------------------------------------------
--- SPAWNS — Orgrimmar, Valley of Strength, in a row just west of the
--- Porter (1637.4, -4404.2), facing the same way she does. z is taken
--- from where the raid's bots were standing on that spot (16.1056). If
--- one ends up floating or sunk, `.npc move` it and copy the new
--- position back here.
+-- SPAWNS — Orgrimmar, Valley of Strength: a row on the flat ground just
+-- south-west of the Porter (1637.4, -4404.2), facing the same way she
+-- does. Torvek (weapon-vendor.sql) heads the row.
+--
+-- Moved 2026-09-26. The first row, at x 1632.3, ran down a ramp with one
+-- shared z, so Torvek floated about a yard and Oriel stood sunk. Each z
+-- here is its own ground height, read from the navmesh
+-- (mmaps/0012840.mmtile) and corrected by -0.37, the median offset of 45
+-- stationary stock NPCs nearby. If one still looks off, `.npc move` it
+-- and copy the new position back here.
 -- ---------------------------------------------------------------------
 
 DELETE FROM `acore_world`.`creature` WHERE `id` IN (@T4, @T5, @T6) OR `guid` IN (@T4, @T5, @T6);
@@ -103,6 +108,6 @@ INSERT INTO `acore_world`.`creature`
    `spawntimesecs`, `wander_distance`, `currentwaypoint`, `curhealth`, `curmana`,
    `MovementType`, `npcflag`, `unit_flags`, `dynamicflags`, `ScriptName`, `CreateObject`, `Comment`)
 VALUES
-  (@T4, @T4, 1, 0, 0, 1, 1, 0, 1632.3, -4401.6, 16.1056, 3.06538, 300, 0, 0, 12600, 0, 0, 0, 0, 0, '', 0, 'HPRV Tier 4 vendor - Orgrimmar'),
-  (@T5, @T5, 1, 0, 0, 1, 1, 0, 1632.3, -4403.9, 16.1056, 3.06538, 300, 0, 0, 12600, 0, 0, 0, 0, 0, '', 0, 'HPRV Tier 5 vendor - Orgrimmar'),
-  (@T6, @T6, 1, 0, 0, 1, 1, 0, 1632.3, -4406.2, 16.1056, 3.06538, 300, 0, 0, 12600, 0, 0, 0, 0, 0, '', 0, 'HPRV Tier 6 vendor - Orgrimmar');
+  (@T4, @T4, 1, 0, 0, 1, 1, 0, 1634.5, -4408.8, 16.56, 3.06538, 300, 0, 0, 12600, 0, 0, 0, 0, 0, '', 0, 'HPRV Tier 4 vendor - Orgrimmar'),
+  (@T5, @T5, 1, 0, 0, 1, 1, 0, 1634.5, -4411.1, 16.85, 3.06538, 300, 0, 0, 12600, 0, 0, 0, 0, 0, '', 0, 'HPRV Tier 5 vendor - Orgrimmar'),
+  (@T6, @T6, 1, 0, 0, 1, 1, 0, 1634.5, -4413.4, 16.75, 3.06538, 300, 0, 0, 12600, 0, 0, 0, 0, 0, '', 0, 'HPRV Tier 6 vendor - Orgrimmar');
