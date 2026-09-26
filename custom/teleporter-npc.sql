@@ -56,10 +56,10 @@ SET @TEXT  := 9100000;
 -- (25967), the Shattrath bronze dragon who already runs a teleport.
 -- ---------------------------------------------------------------------
 
-DELETE FROM `acore_world`.`creature_template`       WHERE `entry`      = @ENTRY;
-DELETE FROM `acore_world`.`creature_template_model` WHERE `CreatureID` = @ENTRY;
+DELETE FROM `creature_template`       WHERE `entry`      = @ENTRY;
+DELETE FROM `creature_template_model` WHERE `CreatureID` = @ENTRY;
 
-INSERT INTO `acore_world`.`creature_template`
+INSERT INTO `creature_template`
   (`entry`, `name`, `subname`, `gossip_menu_id`, `minlevel`, `maxlevel`, `exp`,
    `faction`, `npcflag`, `unit_class`, `unit_flags`, `type`,
    `AIName`, `HealthModifier`, `VerifiedBuild`)
@@ -68,7 +68,7 @@ VALUES
    35, 1, 1, 2, 7,
    'SmartAI', 1, 0);
 
-INSERT INTO `acore_world`.`creature_template_model`
+INSERT INTO `creature_template_model`
   (`CreatureID`, `Idx`, `CreatureDisplayID`, `DisplayScale`, `Probability`, `VerifiedBuild`)
 VALUES
   (@ENTRY, 0, 19282, 1, 1, 0);
@@ -79,16 +79,16 @@ VALUES
 -- the click via SMART_EVENT_GOSSIP_SELECT).
 -- ---------------------------------------------------------------------
 
-DELETE FROM `acore_world`.`npc_text`           WHERE `ID`     = @TEXT;
-DELETE FROM `acore_world`.`gossip_menu`        WHERE `MenuID` = @MENU;
-DELETE FROM `acore_world`.`gossip_menu_option` WHERE `MenuID` = @MENU;
+DELETE FROM `npc_text`           WHERE `ID`     = @TEXT;
+DELETE FROM `gossip_menu`        WHERE `MenuID` = @MENU;
+DELETE FROM `gossip_menu_option` WHERE `MenuID` = @MENU;
 
-INSERT INTO `acore_world`.`npc_text` (`ID`, `text0_0`, `Probability0`, `VerifiedBuild`)
+INSERT INTO `npc_text` (`ID`, `text0_0`, `Probability0`, `VerifiedBuild`)
 VALUES (@TEXT, 'Where to, $n? Try to bring all nine of them back this time.', 1, 0);
 
-INSERT INTO `acore_world`.`gossip_menu` (`MenuID`, `TextID`) VALUES (@MENU, @TEXT);
+INSERT INTO `gossip_menu` (`MenuID`, `TextID`) VALUES (@MENU, @TEXT);
 
-INSERT INTO `acore_world`.`gossip_menu_option`
+INSERT INTO `gossip_menu_option`
   (`MenuID`, `OptionID`, `OptionIcon`, `OptionText`, `OptionBroadcastTextID`,
    `OptionType`, `OptionNpcFlag`, `ActionMenuID`, `ActionPoiID`,
    `BoxCoded`, `BoxMoney`, `BoxText`, `BoxBroadcastTextID`, `VerifiedBuild`)
@@ -120,9 +120,9 @@ VALUES
 -- NPC to respawn (a restart) or the live copy teleports to the old slots.
 -- ---------------------------------------------------------------------
 
-DELETE FROM `acore_world`.`smart_scripts` WHERE `entryorguid` = @ENTRY AND `source_type` = 0;
+DELETE FROM `smart_scripts` WHERE `entryorguid` = @ENTRY AND `source_type` = 0;
 
-INSERT INTO `acore_world`.`smart_scripts`
+INSERT INTO `smart_scripts`
   (`entryorguid`, `source_type`, `id`, `link`,
    `event_type`, `event_phase_mask`, `event_chance`, `event_flags`,
    `event_param1`, `event_param2`, `event_param3`, `event_param4`, `event_param5`, `event_param6`,
@@ -175,9 +175,9 @@ VALUES
 
 SET @GUID := 9100000;
 
-DELETE FROM `acore_world`.`creature` WHERE `id` = @ENTRY OR `guid` = @GUID;
+DELETE FROM `creature` WHERE `guid` = @GUID OR (`id` = @ENTRY AND `guid` NOT BETWEEN 9100000 AND 9100099);
 
-INSERT INTO `acore_world`.`creature`
+INSERT INTO `creature`
   (`guid`, `id`, `map`, `zoneId`, `areaId`, `spawnMask`, `phaseMask`, `equipment_id`,
    `position_x`, `position_y`, `position_z`, `orientation`,
    `spawntimesecs`, `wander_distance`, `currentwaypoint`, `curhealth`, `curmana`,

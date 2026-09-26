@@ -1,13 +1,29 @@
 # Custom NPCs
 
-Four NPCs added 2026-09-25, all SQL-only (no C++, no rebuild), all
+Five NPCs added 2026-09-25, all SQL-only (no C++, no rebuild), all
 standing together in **Orgrimmar, Valley of Strength**. The four vendors
 stand in a row on the flat ground just south-west of the Porter, all
 facing west like her. They were moved there on 2026-09-26, off a ramp
 where one shared z had left Torvek floating and Oriel sunk. How their z
 values were measured: `tier-vendors.sql`. Source is
 `custom/`, applied by hand with `mysql acore_world < custom/<file>.sql`
-on the box. Every file is idempotent.
+on the box. Every file is idempotent, and none names a database.
+
+On HPRV, all of them are applied **except `stormwind-spawns.sql`**. That
+file is the package's Alliance spawn set: the whole pool is Horde, so HPRV
+has no use for it.
+
+## The package
+
+`scripts/package-npcs.sh` builds `dist/hprv-npcs-<date>.tar.gz` for
+another AzerothCore server. It's the same `custom/` files, numbered,
+with `custom/README.md` as the install guide. `custom/precheck.sql`
+checks the target first: all 108 columns the files use, the ID range,
+and the 306 tier and 95 weapon items. `custom/uninstall.sql` removes
+everything in the range. Tested 2026-09-26 on a scratch DB built with
+empty copies of the world tables: install, re-run, price toggle,
+uninstall, and a precheck failure on a collision and on a renamed
+column.
 
 | Entry | NPC | What it does | File |
 |---|---|---|---|
@@ -15,13 +31,17 @@ on the box. Every file is idempotent.
 | 9100001 | **Almari Stonebrand** | Tier 4 set pieces, every class, free (85) | `tier-vendors.sql` |
 | 9100002 | **Veshan Coilhand** | Tier 5 set pieces, free (85) | `tier-vendors.sql` |
 | 9100003 | **Oriel Duskmantle** | Tier 6 set pieces incl. Sunwell wrist/waist/feet, free (136) | `tier-vendors.sql` |
-| 9100004 | **Torvek Ashforge** | T4/T5/T6 raid-drop weapons, shields, off-hands, relics, free (95) | `weapon-vendor.sql` |
+| 9100004 | **Torvek Ashforge** | T4/T5/T6 raid-drop weapons, shields, off-hands, relics, free (95) | `weapon-vendor.sql`, free via `weapon-vendor-free-prices.sql` |
 
 ## The ID range
 
 **9100000–9100099 is ours**, in every table: `creature_template`,
 `creature` (spawn guid = entry), `gossip_menu`, `npc_text`,
-`smart_scripts`, `npc_vendor`. It was empty on 2026-09-25; the highest
+`smart_scripts`, `npc_vendor`. Spawn guids: 9100000–04 in Orgrimmar
+and 9100010–14 in Stormwind (entry + 10). Each file's spawn `DELETE`
+also sweeps its NPC's spawns *outside* the range (a stray `.npc add`),
+but leaves the range alone, so the two cities' files never remove each
+other's spawns. It was empty on 2026-09-25; the highest
 stock creature entry is 3,460,603. Each file's `DELETE`s are scoped to
 its own IDs, so re-running only ever replaces its own rows. Take the
 next free number for anything new.
@@ -66,9 +86,10 @@ bring her back.
   piece already has `BuyPrice = 0` in the stock DB — they were only ever
   token rewards.
 - **Weapons needed one stock change.** They carry gold prices, so
-  `weapon-vendor.sql` sets `BuyPrice = 0` on exactly its 95 items (no
-  stock vendor sells any of them). `weapon-vendor-revert-prices.sql`
-  restores the originals.
+  `weapon-vendor-free-prices.sql` sets `BuyPrice = 0` on exactly the 95
+  items (no stock vendor sells any of them). It was split out of
+  `weapon-vendor.sql` on 2026-09-26 so the package can make it opt-in.
+  `weapon-vendor-revert-prices.sql` restores the originals.
 - The weapon list is written out explicitly, derived by walking the
   creature and gameobject loot tables (through `reference_loot_template`)
   for every spawn in Karazhan, Gruul, Mag, SSC, TK, Hyjal and BT. ZA and

@@ -19,13 +19,13 @@
 -- queried at apply time so it is reviewable and stable. Zul'Aman and
 -- Sunwell are deliberately out: neither is a tier raid.
 --
--- PRICE — THE ONE STOCK CHANGE
+-- PRICE — NOT IN THIS FILE
 --
 -- Unlike the tier pieces, these carry a gold BuyPrice, and a vendor
--- charges item_template.BuyPrice. So this file sets BuyPrice = 0 on
--- exactly these 95 items. No stock vendor sells any of them, so
--- nothing else changes in game (SellPrice, a separate column, is left
--- alone). The original prices are in weapon-vendor-revert-prices.sql.
+-- charges item_template.BuyPrice. On its own this file sells them at
+-- stock prices. Making them free is the one change to stock rows in
+-- this set, so it has its own file: weapon-vendor-free-prices.sql
+-- (applied on HPRV), undone by weapon-vendor-revert-prices.sql.
 --
 -- IDS / RESTART
 --
@@ -38,16 +38,16 @@
 
 SET @NPC := 9100004;
 
-DELETE FROM `acore_world`.`creature_template`       WHERE `entry`      = @NPC;
-DELETE FROM `acore_world`.`creature_template_model` WHERE `CreatureID` = @NPC;
+DELETE FROM `creature_template`       WHERE `entry`      = @NPC;
+DELETE FROM `creature_template_model` WHERE `CreatureID` = @NPC;
 
-INSERT INTO `acore_world`.`creature_template`
+INSERT INTO `creature_template`
   (`entry`, `name`, `subname`, `minlevel`, `maxlevel`, `exp`,
    `faction`, `npcflag`, `unit_class`, `unit_flags`, `type`, `HealthModifier`, `VerifiedBuild`)
 VALUES
   (@NPC, 'Torvek Ashforge', 'Raid Weapons', 80, 80, 2, 35, 128, 1, 2, 7, 1, 0);
 
-INSERT INTO `acore_world`.`creature_template_model`
+INSERT INTO `creature_template_model`
   (`CreatureID`, `Idx`, `CreatureDisplayID`, `DisplayScale`, `Probability`, `VerifiedBuild`)
 VALUES
   (@NPC, 0, 24730, 1, 1, 0);   -- Anwehu, Weapons & Armorsmith (Shattrath)
@@ -56,9 +56,9 @@ VALUES
 -- Stock list, grouped by tier, then weapon type.
 -- ---------------------------------------------------------------------
 
-DELETE FROM `acore_world`.`npc_vendor` WHERE `entry` = @NPC;
+DELETE FROM `npc_vendor` WHERE `entry` = @NPC;
 
-INSERT INTO `acore_world`.`npc_vendor` (`entry`, `slot`, `item`, `maxcount`, `incrtime`, `ExtendedCost`, `VerifiedBuild`)
+INSERT INTO `npc_vendor` (`entry`, `slot`, `item`, `maxcount`, `incrtime`, `ExtendedCost`, `VerifiedBuild`)
 VALUES
   -- Tier 4
   (@NPC,   1,  28767, 0, 0, 0, 0),   -- ilvl 125  The Decapitator  (Karazhan)
@@ -160,29 +160,13 @@ VALUES
   (@NPC,  95,  32330, 0, 0, 0, 0);    -- ilvl 141  Totem of Ancestral Guidance  (Black Temple)
 
 -- ---------------------------------------------------------------------
--- Free. Revert with weapon-vendor-revert-prices.sql.
--- ---------------------------------------------------------------------
-
-UPDATE `acore_world`.`item_template` SET `BuyPrice` = 0 WHERE `entry` IN (
-  28767, 39769, 28773, 28794, 28772, 28522, 28657, 28771, 28800, 28774,
-  28729, 28749, 28802, 28604, 28633, 28658, 28782, 28524, 28768, 28770,
-  28659, 28826, 28673, 28783, 28525, 28603, 28728, 28734, 28781, 28606,
-  28611, 28754, 28825, 29458, 28568, 28523, 29924, 30105, 29949, 29996,
-  30108, 30090, 30082, 30095, 29993, 29981, 30021, 29988, 29948, 32944,
-  29962, 30103, 30025, 29982, 30080, 29923, 30049, 30051, 30023, 32236,
-  32254, 32348, 30906, 32336, 32325, 32262, 32943, 34009, 32500, 32248,
-  32369, 30910, 32837, 32838, 30902, 32344, 30908, 32374, 32945, 32946,
-  32237, 32269, 32471, 32326, 32253, 32343, 32361, 30911, 32255, 34011,
-  30909, 32375, 32368, 32257, 32330);
-
--- ---------------------------------------------------------------------
 -- SPAWN — north end of the vendor row, south-west of the Porter. The
 -- row and how its z values were measured: tier-vendors.sql.
 -- ---------------------------------------------------------------------
 
-DELETE FROM `acore_world`.`creature` WHERE `id` = @NPC OR `guid` = @NPC;
+DELETE FROM `creature` WHERE `guid` = @NPC OR (`id` = @NPC AND `guid` NOT BETWEEN 9100000 AND 9100099);
 
-INSERT INTO `acore_world`.`creature`
+INSERT INTO `creature`
   (`guid`, `id`, `map`, `zoneId`, `areaId`, `spawnMask`, `phaseMask`, `equipment_id`,
    `position_x`, `position_y`, `position_z`, `orientation`,
    `spawntimesecs`, `wander_distance`, `currentwaypoint`, `curhealth`, `curmana`,

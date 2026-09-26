@@ -393,7 +393,7 @@ clear that bar.
 | `scripts/gear-rounds.conf` | Item 2's gear passes as three `hprv-spec.sh --batch` rounds, capped per group |
 | `scripts/roster-status.sh` | Level/class/gear from the DB, no login needed |
 | `tuning/` | BC-feel SQL. See below |
-| `custom/` | Custom NPC SQL (ID range 9100000–9100099) — `docs/custom-npcs.md` |
+| `custom/` | Custom NPC SQL (ID range 9100000–9100099) — `docs/custom-npcs.md`. `scripts/package-npcs.sh` packs it for other servers |
 | `docs/raid-layout.md` | Party layout for the 10 and the 25, why it persists, audit and restore (`scripts/raid-layout.sql`) |
 | `docs/tank-defence.md` | Enchants, gems and gear to crit-cap Bullwark and Ararin (`scripts/fix-tank-defence.sql`). Defence counting incl. enchants/gems: `scripts/defence.conf` |
 | `docs/bullwark-gear.md` | Bullwark's hand-picked gear, snapshotted, with restore lines. He is never `init=`'d |

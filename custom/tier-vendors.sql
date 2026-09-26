@@ -47,10 +47,10 @@ SET @T6 := 9100003;
 -- Porter. Models borrowed from the Shattrath quartermasters.
 -- ---------------------------------------------------------------------
 
-DELETE FROM `acore_world`.`creature_template`       WHERE `entry`      IN (@T4, @T5, @T6);
-DELETE FROM `acore_world`.`creature_template_model` WHERE `CreatureID` IN (@T4, @T5, @T6);
+DELETE FROM `creature_template`       WHERE `entry`      IN (@T4, @T5, @T6);
+DELETE FROM `creature_template_model` WHERE `CreatureID` IN (@T4, @T5, @T6);
 
-INSERT INTO `acore_world`.`creature_template`
+INSERT INTO `creature_template`
   (`entry`, `name`, `subname`, `minlevel`, `maxlevel`, `exp`,
    `faction`, `npcflag`, `unit_class`, `unit_flags`, `type`, `HealthModifier`, `VerifiedBuild`)
 VALUES
@@ -58,7 +58,7 @@ VALUES
   (@T5, 'Veshan Coilhand',   'Tier 5 Armor',  80, 80, 2, 35, 128, 1, 2, 7, 1, 0),
   (@T6, 'Oriel Duskmantle',  'Tier 6 Armor',  80, 80, 2, 35, 128, 1, 2, 7, 1, 0);
 
-INSERT INTO `acore_world`.`creature_template_model`
+INSERT INTO `creature_template_model`
   (`CreatureID`, `Idx`, `CreatureDisplayID`, `DisplayScale`, `Probability`, `VerifiedBuild`)
 VALUES
   (@T4, 0, 20290, 1, 1, 0),   -- Almaador, Sha'tari Quartermaster
@@ -70,21 +70,21 @@ VALUES
 -- each class's pieces sit together.
 -- ---------------------------------------------------------------------
 
-DELETE FROM `acore_world`.`npc_vendor` WHERE `entry` IN (@T4, @T5, @T6);
+DELETE FROM `npc_vendor` WHERE `entry` IN (@T4, @T5, @T6);
 
-INSERT INTO `acore_world`.`npc_vendor` (`entry`, `slot`, `item`, `maxcount`, `incrtime`, `ExtendedCost`, `VerifiedBuild`)
+INSERT INTO `npc_vendor` (`entry`, `slot`, `item`, `maxcount`, `incrtime`, `ExtendedCost`, `VerifiedBuild`)
 SELECT @T4, ROW_NUMBER() OVER (ORDER BY `itemset`, `InventoryType`, `entry`), `entry`, 0, 0, 0, 0
-  FROM `acore_world`.`item_template`
+  FROM `item_template`
  WHERE `itemset` IN (621, 624, 625, 626, 631, 632, 633, 638, 639, 640, 645, 648, 651, 654, 655, 663, 664);
 
-INSERT INTO `acore_world`.`npc_vendor` (`entry`, `slot`, `item`, `maxcount`, `incrtime`, `ExtendedCost`, `VerifiedBuild`)
+INSERT INTO `npc_vendor` (`entry`, `slot`, `item`, `maxcount`, `incrtime`, `ExtendedCost`, `VerifiedBuild`)
 SELECT @T5, ROW_NUMBER() OVER (ORDER BY `itemset`, `InventoryType`, `entry`), `entry`, 0, 0, 0, 0
-  FROM `acore_world`.`item_template`
+  FROM `item_template`
  WHERE `itemset` IN (622, 627, 628, 629, 634, 635, 636, 641, 642, 643, 646, 649, 652, 656, 657, 665, 666);
 
-INSERT INTO `acore_world`.`npc_vendor` (`entry`, `slot`, `item`, `maxcount`, `incrtime`, `ExtendedCost`, `VerifiedBuild`)
+INSERT INTO `npc_vendor` (`entry`, `slot`, `item`, `maxcount`, `incrtime`, `ExtendedCost`, `VerifiedBuild`)
 SELECT @T6, ROW_NUMBER() OVER (ORDER BY `itemset`, `ItemLevel`, `InventoryType`, `entry`), `entry`, 0, 0, 0, 0
-  FROM `acore_world`.`item_template`
+  FROM `item_template`
  WHERE `itemset` BETWEEN 668 AND 684;
 
 -- ---------------------------------------------------------------------
@@ -100,9 +100,9 @@ SELECT @T6, ROW_NUMBER() OVER (ORDER BY `itemset`, `ItemLevel`, `InventoryType`,
 -- and copy the new position back here.
 -- ---------------------------------------------------------------------
 
-DELETE FROM `acore_world`.`creature` WHERE `id` IN (@T4, @T5, @T6) OR `guid` IN (@T4, @T5, @T6);
+DELETE FROM `creature` WHERE `guid` IN (@T4, @T5, @T6) OR (`id` IN (@T4, @T5, @T6) AND `guid` NOT BETWEEN 9100000 AND 9100099);
 
-INSERT INTO `acore_world`.`creature`
+INSERT INTO `creature`
   (`guid`, `id`, `map`, `zoneId`, `areaId`, `spawnMask`, `phaseMask`, `equipment_id`,
    `position_x`, `position_y`, `position_z`, `orientation`,
    `spawntimesecs`, `wander_distance`, `currentwaypoint`, `curhealth`, `curmana`,
