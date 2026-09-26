@@ -28,10 +28,20 @@ Like any DB read, it shows last-saved state, so `.save` first.
 
 ## Bullwark: 474 → 521, enchants and gems only, no gear change
 
-He is at **296 rating** from items. His gear has moved on from
-`docs/bullwark-gear.md`: Tankatronic Goggles on the head, and the Goblin
-Rocket Launcher and the Brooch in the trinket slots. Update that snapshot
-after this. He has no enchants and no gems anywhere.
+> **Done 2026-09-26, and he ended at 535, not 521.** Everything below is
+> applied and verified from the DB, and the gem layout matches the table
+> exactly. The extra 14 skill is the Adamantine Figurine (+32 rating),
+> which replaced the Goblin Rocket Launcher in a trinket slot. He also
+> took the five non-defence enchants: Gloves - Threat, Weapon - Mongoose,
+> Nethercleft Leg Armor, Shield - Major Stamina and Boots - Boar's Speed.
+> Threat comes first because the bots' `+threat` cap scales raid DPS
+> against his threat (rule 3). His current gear, and the restore lines,
+> are in `docs/bullwark-gear.md`.
+
+This was the plan as written, before any of it was applied: he was at
+**296 rating** from items. His gear had moved on from the old snapshot:
+Tankatronic Goggles on the head, and the Goblin Rocket Launcher and the
+Brooch in the trinket slots. He had no enchants and no gems anywhere.
 
 ### Enchants: 71 rating, enough on their own (→ 504)
 
