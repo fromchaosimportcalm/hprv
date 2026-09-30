@@ -1,0 +1,164 @@
+:root {
+  --bg: #0a1018;
+  --panel: #111b27;
+  --panel-2: #0d1520;
+  --line: #22324a;
+  --text: #e6e9ef;
+  --muted: #8a97ab;
+  --gold: #e8c060;
+  --ilvl: #7cc4ff;
+  --on: #4ade80;
+  --warn: #f5b041;
+  --off: #6b7688;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: radial-gradient(ellipse at top, #13213a 0%, var(--bg) 60%) fixed;
+  background-color: var(--bg);
+  color: var(--text);
+  font: 15px/1.45 Inter, system-ui, sans-serif;
+}
+
+main { max-width: 1100px; margin: 0 auto; padding: 24px 16px 48px; }
+
+a { color: inherit; text-decoration: none; }
+
+h1, h2, .name { font-family: Cinzel, Georgia, serif; }
+
+h1 { margin: 0; font-size: 34px; color: var(--gold); letter-spacing: .04em; }
+
+h2 {
+  margin: 0 0 14px;
+  padding-left: 12px;
+  border-left: 3px solid var(--gold);
+  font-size: 22px;
+  display: flex; align-items: center; gap: 10px;
+}
+
+h2 small, h3 small {
+  font: 400 13px Inter, system-ui, sans-serif;
+  color: var(--muted);
+}
+
+h3 { margin: 18px 0 10px; font-size: 14px; font-weight: 600; color: var(--muted); }
+
+.dot {
+  display: inline-block; width: 10px; height: 10px; border-radius: 50%;
+  background: var(--off); margin-right: 8px; vertical-align: middle;
+}
+.dot.on { background: var(--on); box-shadow: 0 0 8px var(--on); }
+.dot.warn { background: var(--warn); }
+h2 .dot { margin-right: 0; }
+
+/* realm bar */
+.realm {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+  gap: 16px; margin-bottom: 32px; padding: 18px 20px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+}
+.realm-stats { display: flex; flex-wrap: wrap; gap: 10px; }
+.realm-stats div, .stats div {
+  background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px;
+  padding: 8px 12px; min-width: 96px;
+}
+.realm-stats span, .stats span, .lvl span {
+  display: block; font-size: 11px; font-weight: 600; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--muted);
+}
+.realm-stats b { font-size: 17px; }
+
+.player { margin-bottom: 36px; }
+
+/* character card */
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 16px; }
+
+.card {
+  display: block; padding: 16px;
+  background: linear-gradient(160deg, color-mix(in srgb, var(--cc) 12%, var(--panel)) 0%, var(--panel) 55%);
+  border: 1px solid color-mix(in srgb, var(--cc) 45%, var(--line));
+  border-radius: 12px;
+  transition: transform .12s, border-color .12s;
+}
+.card:hover { transform: translateY(-2px); border-color: var(--cc); }
+
+.head { display: flex; align-items: center; gap: 12px; }
+.portrait { position: relative; flex: none; }
+.portrait img:first-child {
+  width: 56px; height: 56px; border-radius: 50%;
+  border: 2px solid var(--cc); display: block;
+}
+.portrait .badge {
+  position: absolute; right: -4px; bottom: -4px;
+  width: 24px; height: 24px; border-radius: 5px; border: 1px solid #000;
+}
+.who { flex: 1; min-width: 0; }
+.card .name {
+  font-size: 19px; font-weight: 700; color: var(--cc);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.sub { font-size: 13px; color: var(--muted); }
+.lvl {
+  flex: none; text-align: center; padding: 4px 10px;
+  border: 1px solid color-mix(in srgb, var(--gold) 50%, transparent); border-radius: 8px;
+}
+.lvl b { font: 700 22px Cinzel, Georgia, serif; color: var(--gold); }
+
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 14px; }
+.stats div { min-width: 0; padding: 8px; }
+.stats b { font-size: 15px; }
+.gold { color: var(--gold); }
+.ilvl { color: var(--ilvl); }
+
+.foot {
+  display: flex; justify-content: space-between; gap: 8px; margin-top: 12px;
+  font-size: 13px; color: var(--muted);
+}
+.st.on { color: var(--on); }
+
+/* bot chips */
+.minis { display: flex; flex-wrap: wrap; gap: 8px; }
+.mini {
+  display: flex; align-items: center; gap: 8px; padding: 6px 10px 6px 6px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+  opacity: .6;
+}
+.mini.online { opacity: 1; border-color: color-mix(in srgb, var(--cc) 50%, var(--line)); }
+.mini:hover { border-color: var(--cc); opacity: 1; }
+.mini img { width: 22px; height: 22px; border-radius: 4px; }
+.mini .name { font-size: 14px; font-weight: 700; color: var(--cc); }
+.mini .meta { font-size: 12px; color: var(--muted); }
+.mini .meta b { color: var(--ilvl); }
+
+/* gear */
+.back { margin: 0 0 16px; color: var(--muted); }
+.back a:hover { color: var(--text); }
+.gear { margin-top: 28px; }
+.gear table {
+  width: 100%; border-collapse: collapse;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow: hidden;
+}
+.gear th, .gear td { padding: 8px 12px; border-bottom: 1px solid var(--line); text-align: left; }
+.gear tr:last-child th, .gear tr:last-child td { border-bottom: 0; }
+.gear th { width: 110px; font-size: 12px; font-weight: 600; text-transform: uppercase; color: var(--muted); }
+.gear td.ilvl { width: 50px; text-align: right; }
+.gear td:last-child { width: 28px; }
+.gear tr.missing td { color: var(--off); }
+.ench { color: #37d67a; }
+
+.q-poor { color: #9d9d9d; } .q-common { color: #fff; } .q-uncommon { color: #1eff00; }
+.q-rare { color: #0070dd; } .q-epic { color: #a335ee; } .q-legendary { color: #ff8000; }
+.q-artifact, .q-heirloom { color: #e6cc80; }
+
+.empty { color: var(--muted); }
+
+footer { margin-top: 40px; font-size: 13px; color: var(--muted); }
+footer a { text-decoration: underline; }
+
+@media (max-width: 520px) {
+  h1 { font-size: 26px; }
+  .realm-stats div { min-width: 0; flex: 1 1 40%; }
+  .gear th { width: 80px; }
+}

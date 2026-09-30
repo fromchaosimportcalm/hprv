@@ -1,0 +1,30 @@
+# hprv-portal config. install.sh copies this to /etc/hprv/portal.ini
+# the first time and never overwrites it after that.
+
+[portal]
+bind = 0.0.0.0
+port = 8096
+# Where authserver and worldserver listen, for the online check.
+server_host = 127.0.0.1
+auth_port = 3724
+world_port = 8085
+# acore_auth.realmlist id. 1 unless the box runs more than one realm.
+realm_id = 1
+# Accounts starting with this are bots (AiPlayerbot.RandomBotAccountPrefix).
+bot_account_prefix = RNDBOT
+cache_seconds = 15
+
+[database]
+# A [client] option file holding the read-only portal user.
+client_config = /etc/hprv/portal.cnf
+auth = acore_auth
+characters = acore_characters
+world = acore_world
+playerbots = acore_playerbots
+
+[players]
+# Person = the character they play. Everything else on that account
+# is shown as their bots. Anyone left out is named after their account,
+# and their most-played character counts as the one they play.
+#
+# Clinton = Bullwark

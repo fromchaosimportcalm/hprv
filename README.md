@@ -19,6 +19,7 @@ human tanks TBC raids for a raid of bots.
 | Fight a specific boss | `docs/encounters/` |
 | Set up the 40-character pool | `docs/pool.md` |
 | Use or add the custom NPCs (teleporter, gear vendors) | `docs/custom-npcs.md` |
+| See who's on and what everyone's wearing (web page) | `portal/README.md` |
 | Rebuild the server from nothing | `docs/build.md` |
 | Create the container | `docs/host-create.md` |
 
@@ -70,6 +71,7 @@ scripts/
   roster-status.sh     DB-side status report
   gear-pass.sh         spec-then-gear passes
   pins.conf            core + module SHAs — the reproducibility artifact
+portal/                read-only web page: realm status, players, gear
 decisions/             standing rules; history lives in `hprv-archive`
 tuning/                BC-feel SQL
 ```

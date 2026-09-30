@@ -401,6 +401,7 @@ clear that bar.
 | `TODO.md` | The working list: items 1–7, with status |
 | `scripts/strip-gear-above-ilvl.sql` | Delete equipped gear above an ilvl across the roster — ADR `0006` |
 | `decisions/` | Standing rules only — history lives in `hprv-archive` |
+| `portal/` | Read-only web page on `:8096`: realm up/down, who's on, everyone's gear. Stdlib Python, its own SELECT-only MySQL user (no password columns). `scripts/package-portal.sh` packs it for other servers — `portal/README.md` |
 
 On the box: `/mnt/hprv/server` (install), `/mnt/hprv/data` (extracted
 client data), `/mnt/hprv/build/azerothcore` (source), `/etc/hprv/hprv.env`
