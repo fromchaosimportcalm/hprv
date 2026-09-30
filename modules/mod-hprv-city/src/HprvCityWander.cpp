@@ -3,8 +3,10 @@
  * instead of following at 1.5 yards.
  *
  * While you are on foot in a capital, each bot you're master of drops
- * "follow" from its non-combat engine and takes one of two roles, rolled
- * each time it's taken over:
+ * "follow" from its non-combat engine. Its first job is a shopping trip: walk
+ * to a nearby repair vendor, sell grey items and white weapons/armour, and
+ * repair. Once per visit. After that it takes one of two roles, rolled each
+ * time it's taken over:
  *
  *   errands (ERRAND_SHARE)  walks between the city's auctioneers, bankers,
  *                           innkeepers and mailboxes, lingering at each
@@ -20,10 +22,12 @@
  * mod-playerbots itself is untouched, so its pin in scripts/pins.conf holds.
  */
 
+#include "Bag.h"
 #include "DBCStores.h"
 #include "GameTime.h"
-#include "Log.h"
 #include "Group.h"
+#include "ItemPackets.h"
+#include "Log.h"
 #include "Map.h"
 #include "MotionMaster.h"
 #include "MoveSpline.h"
@@ -34,7 +38,9 @@
 #include "Playerbots.h"
 #include "Random.h"
 #include "ScriptMgr.h"
+#include "WorldSession.h"
 
+#include <algorithm>
 #include <cmath>
 #include <unordered_map>
 #include <unordered_set>
@@ -60,30 +66,41 @@ constexpr uint32 PAUSE_MAX_MS = 18000;
 
 constexpr float CITY_SCAN = 800.0f;    // spawns this close to you are zone-checked, once per city
 constexpr float ERRAND_REACH = 150.0f;  // next stop is picked from those this close to the bot
+constexpr size_t VENDOR_CHOICE = 3;     // shopping: pick among this many nearest repair vendors
 constexpr float JOG = 30.0f;            // further than this from the stop: run, don't walk
 constexpr float ARRIVED = 3.0f;
 constexpr uint8 MAX_STALLS = 6;  // re-issued moves without getting closer before giving up on a stop
 
-// Where errand bots go. The spawn store has no usable zoneId (0 on every row
-// here), so each city's list is built from positions the first time you enter.
-enum class PoiKind : uint8 { Auctioneer, Banker, Innkeeper, Mailbox };
+enum class PoiKind : uint8 { Auctioneer, Banker, Innkeeper, Mailbox, Vendor };
 
 struct Poi
 {
     PoiKind kind;
     float x, y, z, o;
+    uint32 entry;    // creature entry; 0 for mailboxes
     uint32 faction;  // creature faction template; 0 for mailboxes
 };
 
-std::unordered_map<uint32, std::vector<Poi>> poisByZone;
+// The spawn store has no usable zoneId (0 on every row here), so each city's
+// lists are built from positions the first time you enter it.
+struct City
+{
+    std::vector<Poi> stops;    // errand destinations
+    std::vector<Poi> vendors;  // repair vendors, for the shopping trip
+};
+
+std::unordered_map<uint32, City> cities;
 
 struct BotState
 {
     bool errands = false;
-    uint64 nextMs = 0;  // milling: next stroll; errands: when to leave the current stop
-    int32 poi = -1;     // errands: stop being walked to or stood at
-    int32 lastPoi = -1;
+    bool shopping = false;
+    uint64 nextMs = 0;  // milling: next stroll; otherwise when to leave the current stop
+    int32 lastStop = -1;
+
     bool enRoute = false;
+    Poi dest{};
+    int32 destStop = -1;  // index into City::stops, or -1 for a vendor
     float tx = 0, ty = 0, tz = 0;
     float bestDist = 0;
     uint8 stalls = 0;
@@ -93,6 +110,7 @@ struct MasterState
 {
     uint32 sinceTick = 0;
     std::unordered_map<ObjectGuid, BotState> bots;
+    std::unordered_set<ObjectGuid> shopped;  // this city visit; cleared when you leave
 };
 
 // Unlocked: only real players reach it, and MapUpdate.Threads = 1 on this box.
@@ -102,14 +120,23 @@ uint64 NowMs() { return static_cast<uint64>(GameTime::GetGameTimeMS().count()); 
 
 uint64 After(uint32 minMs, uint32 maxMs) { return NowMs() + urand(minMs, maxMs); }
 
-std::vector<Poi> const& CityPois(Player* master)
+// Test-realm props ("[DND] TAR Pedestal - Gems", a bare "Weapons Vendor")
+// carry vendor and repair flags too. Real merchants are selectable and have a
+// subtitle.
+bool IsRealVendor(CreatureTemplate const* tmpl)
+{
+    return !(tmpl->unit_flags & UNIT_FLAG_NOT_SELECTABLE) && !tmpl->SubName.empty() &&
+           tmpl->Name.rfind("[DND]", 0) != 0;
+}
+
+City const& CityOf(Player* master)
 {
     uint32 const zone = master->GetZoneId();
-    auto found = poisByZone.find(zone);
-    if (found != poisByZone.end())
+    auto found = cities.find(zone);
+    if (found != cities.end())
         return found->second;
 
-    std::vector<Poi>& pois = poisByZone[zone];
+    City& city = cities[zone];
     Map* map = master->GetMap();
     uint32 const mapId = master->GetMapId();
 
@@ -124,9 +151,10 @@ std::vector<Poi> const& CityPois(Player* master)
         if (data.mapid != mapId)
             continue;
         CreatureTemplate const* tmpl = sObjectMgr->GetCreatureTemplate(data.id);
-        if (!tmpl)
+        if (!tmpl || (tmpl->unit_flags & UNIT_FLAG_NOT_SELECTABLE))
             continue;
 
+        bool const vendor = (tmpl->npcflag & UNIT_NPC_FLAG_REPAIR) && IsRealVendor(tmpl);
         PoiKind kind;
         if (tmpl->npcflag & UNIT_NPC_FLAG_AUCTIONEER)
             kind = PoiKind::Auctioneer;
@@ -134,11 +162,19 @@ std::vector<Poi> const& CityPois(Player* master)
             kind = PoiKind::Banker;
         else if (tmpl->npcflag & UNIT_NPC_FLAG_INNKEEPER)
             kind = PoiKind::Innkeeper;
+        else if (vendor)
+            kind = PoiKind::Vendor;
         else
             continue;
 
-        if (inCity(data.posX, data.posY, data.posZ))
-            pois.push_back({kind, data.posX, data.posY, data.posZ, data.orientation, tmpl->faction});
+        if (!inCity(data.posX, data.posY, data.posZ))
+            continue;
+
+        Poi const poi{kind, data.posX, data.posY, data.posZ, data.orientation, data.id, tmpl->faction};
+        if (kind == PoiKind::Vendor)
+            city.vendors.push_back(poi);
+        else
+            city.stops.push_back(poi);
     }
 
     for (auto const& [spawnId, data] : sObjectMgr->GetAllGOData())
@@ -147,11 +183,12 @@ std::vector<Poi> const& CityPois(Player* master)
             continue;
         GameObjectTemplate const* tmpl = sObjectMgr->GetGameObjectTemplate(data.id);
         if (tmpl && tmpl->type == GAMEOBJECT_TYPE_MAILBOX && inCity(data.posX, data.posY, data.posZ))
-            pois.push_back({PoiKind::Mailbox, data.posX, data.posY, data.posZ, data.orientation, 0});
+            city.stops.push_back({PoiKind::Mailbox, data.posX, data.posY, data.posZ, data.orientation, 0, 0});
     }
 
-    LOG_INFO("module", "mod-hprv-city: zone {} has {} errand stops", zone, pois.size());
-    return pois;
+    LOG_INFO("module", "mod-hprv-city: zone {} has {} errand stops, {} repair vendors", zone, city.stops.size(),
+             city.vendors.size());
+    return city;
 }
 
 bool Welcomes(Poi const& poi, Player* bot)
@@ -172,6 +209,7 @@ void LingerAt(PoiKind kind, BotState& s)
         case PoiKind::Banker:     s.nextMs = After(10000, 30000); break;
         case PoiKind::Innkeeper:  s.nextMs = After(20000, 60000); break;
         case PoiKind::Mailbox:    s.nextMs = After(5000, 15000);  break;
+        case PoiKind::Vendor:     s.nextMs = After(4000, 10000);  break;
     }
 }
 
@@ -181,13 +219,14 @@ bool MasterWantsWander(Player* master)
            CITY_ZONES.count(master->GetZoneId());
 }
 
-bool BotCanWander(Player* bot, Player* master, bool errands)
+// Errands and shopping range over the whole city; only milling is leashed to you.
+bool BotCanWander(Player* bot, Player* master, bool cityWide)
 {
     if (!bot->IsInWorld() || !bot->IsAlive() || bot->IsInCombat() || bot->IsInFlight() ||
         bot->GetMap() != master->GetMap())
         return false;
 
-    return errands ? bot->GetZoneId() == master->GetZoneId() : bot->IsWithinDistInMap(master, LEASH);
+    return cityWide ? bot->GetZoneId() == master->GetZoneId() : bot->IsWithinDistInMap(master, LEASH);
 }
 
 // A co/nc whisper while the bot is wandering makes PlayerbotRepository::Save()
@@ -217,6 +256,82 @@ void Restore(Player* bot)
 
     if (SavedWithoutFollow(bot))
         PlayerbotRepository::instance().Save(botAI);
+}
+
+// Grey anything, plus white weapons and armour. Never consumables, reagents,
+// trade goods, ammo, quest items, or white tools (mining pick, skinning knife,
+// fishing pole), shirts and tabards.
+bool IsJunk(Item* item)
+{
+    ItemTemplate const* t = item->GetTemplate();
+    if (!t->SellPrice || t->Bonding == BIND_QUEST_ITEM)
+        return false;
+
+    if (t->Quality == ITEM_QUALITY_POOR)
+        return true;
+
+    if (t->Quality != ITEM_QUALITY_NORMAL || t->TotemCategory)
+        return false;
+
+    if (t->Class == ITEM_CLASS_WEAPON)
+        return t->SubClass != ITEM_SUBCLASS_WEAPON_MISC && t->SubClass != ITEM_SUBCLASS_WEAPON_FISHING_POLE;
+
+    if (t->Class == ITEM_CLASS_ARMOR)
+        return t->InventoryType != INVTYPE_BODY && t->InventoryType != INVTYPE_TABARD;
+
+    return false;
+}
+
+// Backpack and bags only; equipped gear, the bank and the keyring are never touched.
+std::vector<Item*> JunkInBags(Player* bot)
+{
+    std::vector<Item*> junk;
+    for (uint8 slot = INVENTORY_SLOT_ITEM_START; slot < INVENTORY_SLOT_ITEM_END; ++slot)
+        if (Item* item = bot->GetItemByPos(INVENTORY_SLOT_BAG_0, slot))
+            if (IsJunk(item))
+                junk.push_back(item);
+
+    for (uint8 bagSlot = INVENTORY_SLOT_BAG_START; bagSlot < INVENTORY_SLOT_BAG_END; ++bagSlot)
+        if (Bag* bag = bot->GetBagByPos(bagSlot))
+            for (uint32 slot = 0; slot < bag->GetBagSize(); ++slot)
+                if (Item* item = bag->GetItemByPos(slot))
+                    if (IsJunk(item))
+                        junk.push_back(item);
+
+    return junk;
+}
+
+// The same packet path mod-playerbots' "sell" action uses, minus its
+// per-item whisper to you.
+void SellAndRepair(Player* bot, Poi const& vendor)
+{
+    Creature* npc = bot->FindNearestCreature(vendor.entry, 10.0f);
+    if (!npc)
+        return;
+
+    uint32 const moneyBefore = bot->GetMoney();
+    uint32 sold = 0;
+    if (bot->GetNPCIfCanInteractWith(npc->GetGUID(), UNIT_NPC_FLAG_VENDOR))
+    {
+        for (Item* item : JunkInBags(bot))
+        {
+            WorldPacket p(CMSG_SELL_ITEM);
+            p << npc->GetGUID() << item->GetGUID() << item->GetCount();
+            WorldPackets::Item::SellItem packet(std::move(p));
+            packet.Read();
+            bot->GetSession()->HandleSellItemOpcode(packet);
+            ++sold;
+        }
+    }
+    uint32 const earned = bot->GetMoney() - moneyBefore;
+
+    // Charged at the normal price; anything it can't afford stays broken.
+    uint32 repaired = 0;
+    if (bot->GetNPCIfCanInteractWith(npc->GetGUID(), UNIT_NPC_FLAG_REPAIR))
+        repaired = bot->DurabilityRepairAll(true, bot->GetReputationPriceDiscount(npc), false);
+
+    LOG_INFO("module", "mod-hprv-city: {} at {}: sold {} items for {}c, repaired for {}c", bot->GetName(),
+             npc->GetName(), sold, earned, repaired);
 }
 
 void MoveBot(Player* bot, float x, float y, float z, bool run)
@@ -261,15 +376,29 @@ void Mill(Player* bot, Player* master, BotState& s)
 }
 
 // A spot a few yards in front of an NPC (so bots queue up at the counter) or
-// anywhere around a mailbox, raycast from the stop itself.
+// anywhere around a mailbox, raycast from the stop itself. Vendors get the
+// closest spots, since selling needs interaction range.
 bool StandingSpot(Player* bot, Poi const& poi, float& x, float& y, float& z)
 {
     Map* map = bot->GetMap();
     for (int attempt = 0; attempt < 5; ++attempt)
     {
-        float const angle = poi.kind == PoiKind::Mailbox ? frand(0.0f, 2.0f * static_cast<float>(M_PI))
-                                                         : poi.o + frand(-0.6f, 0.6f);
-        float const dist = poi.kind == PoiKind::Mailbox ? frand(1.5f, 2.5f) : frand(2.5f, 4.5f);
+        float angle, dist;
+        switch (poi.kind)
+        {
+            case PoiKind::Mailbox:
+                angle = frand(0.0f, 2.0f * static_cast<float>(M_PI));
+                dist = frand(1.5f, 2.5f);
+                break;
+            case PoiKind::Vendor:
+                angle = poi.o + frand(-0.6f, 0.6f);
+                dist = frand(1.5f, 3.0f);
+                break;
+            default:
+                angle = poi.o + frand(-0.6f, 0.6f);
+                dist = frand(2.5f, 4.5f);
+                break;
+        }
         x = poi.x + dist * std::cos(angle);
         y = poi.y + dist * std::sin(angle);
         z = poi.z;
@@ -280,21 +409,103 @@ bool StandingSpot(Player* bot, Poi const& poi, float& x, float& y, float& z)
     return false;
 }
 
-bool PickStop(Player* bot, BotState& s, std::vector<Poi> const& pois)
+bool StartTrip(Player* bot, BotState& s, Poi const& poi, int32 stopIndex)
+{
+    if (!StandingSpot(bot, poi, s.tx, s.ty, s.tz))
+        return false;
+
+    s.dest = poi;
+    s.destStop = stopIndex;
+    s.enRoute = true;
+    s.stalls = 0;
+    s.bestDist = bot->GetExactDist2d(s.tx, s.ty);
+    MoveBot(bot, s.tx, s.ty, s.tz, s.bestDist > JOG);
+    return true;
+}
+
+enum class Trip : uint8 { Walking, Arrived, GaveUp };
+
+Trip Advance(Player* bot, BotState& s)
+{
+    float const dist = bot->GetExactDist2d(s.tx, s.ty);
+
+    if (dist <= ARRIVED || bot->GetExactDist2d(s.dest.x, s.dest.y) <= ARRIVED + 2.0f)
+    {
+        if (!bot->movespline->Finalized())
+            bot->StopMoving();
+        bot->SetFacingTo(bot->GetAngle(s.dest.x, s.dest.y));
+        s.enRoute = false;
+        return Trip::Arrived;
+    }
+
+    if (!bot->movespline->Finalized())
+        return Trip::Walking;
+
+    // Stopped short: a long path gets cut at ~300 yd, or something bumped it.
+    if (dist < s.bestDist - 1.0f)
+    {
+        s.bestDist = dist;
+        s.stalls = 0;
+    }
+    else if (++s.stalls > MAX_STALLS)
+    {
+        s.enRoute = false;
+        return Trip::GaveUp;
+    }
+
+    MoveBot(bot, s.tx, s.ty, s.tz, dist > JOG);
+    return Trip::Walking;
+}
+
+// Returns true while the trip is still going.
+bool Shop(Player* bot, Player* master, BotState& s)
+{
+    if (!s.enRoute)
+    {
+        std::vector<Poi> near;
+        for (Poi const& v : CityOf(master).vendors)
+            if (Welcomes(v, bot))
+                near.push_back(v);
+
+        std::sort(near.begin(), near.end(), [bot](Poi const& a, Poi const& b)
+                  { return bot->GetExactDist2d(a.x, a.y) < bot->GetExactDist2d(b.x, b.y); });
+        if (near.size() > VENDOR_CHOICE)
+            near.resize(VENDOR_CHOICE);
+
+        return !near.empty() && StartTrip(bot, s, near[urand(0, near.size() - 1)], -1);
+    }
+
+    switch (Advance(bot, s))
+    {
+        case Trip::Walking:
+            return true;
+        case Trip::Arrived:
+            SellAndRepair(bot, s.dest);
+            LingerAt(PoiKind::Vendor, s);
+            return false;
+        case Trip::GaveUp:
+            s.nextMs = After(1000, 3000);
+            return false;
+    }
+    return false;
+}
+
+bool PickStop(Player* bot, BotState& s, std::vector<Poi> const& stops)
 {
     std::vector<int32> options;
-    for (int32 i = 0; i < static_cast<int32>(pois.size()); ++i)
-        if (i != s.lastPoi && Welcomes(pois[i], bot) && bot->GetExactDist2d(pois[i].x, pois[i].y) <= ERRAND_REACH)
+    for (int32 i = 0; i < static_cast<int32>(stops.size()); ++i)
+        if (i != s.lastStop && Welcomes(stops[i], bot) &&
+            bot->GetExactDist2d(stops[i].x, stops[i].y) <= ERRAND_REACH)
             options.push_back(i);
 
     // Wandered off the edge of the cluster: head for whatever is nearest.
     if (options.empty())
     {
         float best = 0;
-        for (int32 i = 0; i < static_cast<int32>(pois.size()); ++i)
+        for (int32 i = 0; i < static_cast<int32>(stops.size()); ++i)
         {
-            float const d = bot->GetExactDist2d(pois[i].x, pois[i].y);
-            if (i != s.lastPoi && Welcomes(pois[i], bot) && (options.empty() || d < best))
+            float const d = bot->GetExactDist2d(stops[i].x, stops[i].y);
+            if (i != s.lastStop && Welcomes(stops[i], bot) && (options.empty() || d < best))
             {
                 options.assign(1, i);
                 best = d;
@@ -306,21 +517,13 @@ bool PickStop(Player* bot, BotState& s, std::vector<Poi> const& pois)
         return false;
 
     int32 const pick = options[urand(0, options.size() - 1)];
-    if (!StandingSpot(bot, pois[pick], s.tx, s.ty, s.tz))
-        return false;
-
-    s.poi = pick;
-    s.enRoute = true;
-    s.stalls = 0;
-    s.bestDist = bot->GetExactDist2d(s.tx, s.ty);
-    MoveBot(bot, s.tx, s.ty, s.tz, s.bestDist > JOG);
-    return true;
+    return StartTrip(bot, s, stops[pick], pick);
 }
 
 void RunErrands(Player* bot, Player* master, BotState& s)
 {
-    std::vector<Poi> const& pois = CityPois(master);
-    if (pois.empty())
+    std::vector<Poi> const& stops = CityOf(master).stops;
+    if (stops.empty())
     {
         Mill(bot, master, s);
         return;
@@ -328,48 +531,33 @@ void RunErrands(Player* bot, Player* master, BotState& s)
 
     if (!s.enRoute)
     {
-        if (NowMs() >= s.nextMs && !PickStop(bot, s, pois))
+        if (NowMs() >= s.nextMs && !PickStop(bot, s, stops))
             s.nextMs = After(2000, 5000);
         return;
     }
 
-    Poi const& poi = pois[s.poi];
-    float const dist = bot->GetExactDist2d(s.tx, s.ty);
-
-    if (dist <= ARRIVED || bot->GetExactDist2d(poi.x, poi.y) <= ARRIVED + 2.0f)
+    switch (Advance(bot, s))
     {
-        if (!bot->movespline->Finalized())
-            bot->StopMoving();
-        bot->SetFacingTo(bot->GetAngle(poi.x, poi.y));
-        s.enRoute = false;
-        s.lastPoi = s.poi;
-        LingerAt(poi.kind, s);
-        return;
+        case Trip::Walking:
+            break;
+        case Trip::Arrived:
+            s.lastStop = s.destStop;
+            LingerAt(s.dest.kind, s);
+            break;
+        case Trip::GaveUp:
+            s.lastStop = s.destStop;  // unreachable from here; try somewhere else
+            s.nextMs = After(1000, 3000);
+            break;
     }
-
-    if (!bot->movespline->Finalized())
-        return;
-
-    // Stopped short: a long path gets cut at ~300 yd, or something bumped it.
-    if (dist < s.bestDist - 1.0f)
-    {
-        s.bestDist = dist;
-        s.stalls = 0;
-    }
-    else if (++s.stalls > MAX_STALLS)
-    {
-        s.enRoute = false;
-        s.lastPoi = s.poi;  // unreachable from here; try somewhere else
-        s.nextMs = After(1000, 3000);
-        return;
-    }
-
-    MoveBot(bot, s.tx, s.ty, s.tz, dist > JOG);
 }
 
 void Tick(Player* master, MasterState& state)
 {
     bool const wander = MasterWantsWander(master);
+    // Leaving the city ends the visit; mounting up inside it doesn't.
+    if (!CITY_ZONES.count(master->GetZoneId()))
+        state.shopped.clear();
+
     std::unordered_set<ObjectGuid> seen;
 
     if (Group* group = master->GetGroup())
@@ -389,10 +577,12 @@ void Tick(Player* master, MasterState& state)
 
             ObjectGuid const guid = bot->GetGUID();
             auto it = state.bots.find(guid);
+
             // Roll the role up front so the eligibility check knows which leash applies.
             bool const errands = it != state.bots.end() ? it->second.errands : roll_chance_f(ERRAND_SHARE);
+            bool const shopping = it != state.bots.end() ? it->second.shopping : !state.shopped.count(guid);
 
-            if (!BotCanWander(bot, master, errands))
+            if (!BotCanWander(bot, master, errands || shopping))
                 continue;
 
             if (it == state.bots.end())
@@ -405,6 +595,7 @@ void Tick(Player* master, MasterState& state)
                 botAI->ChangeStrategy("-follow", BOT_STATE_NON_COMBAT);
                 it = state.bots.emplace(guid, BotState{}).first;
                 it->second.errands = errands;
+                it->second.shopping = shopping;
                 it->second.nextMs = After(500, 4000);
             }
             else if (botAI->HasStrategy("follow", BOT_STATE_NON_COMBAT))
@@ -412,11 +603,21 @@ void Tick(Player* master, MasterState& state)
                 botAI->ChangeStrategy("-follow", BOT_STATE_NON_COMBAT);
 
             seen.insert(guid);
+            BotState& s = it->second;
 
-            if (it->second.errands)
-                RunErrands(bot, master, it->second);
+            if (s.shopping)
+            {
+                if (!Shop(bot, master, s))
+                {
+                    // Done, or no vendor reachable: either way, once per visit.
+                    s.shopping = false;
+                    state.shopped.insert(guid);
+                }
+            }
+            else if (s.errands)
+                RunErrands(bot, master, s);
             else
-                Mill(bot, master, it->second);
+                Mill(bot, master, s);
         }
     }
 

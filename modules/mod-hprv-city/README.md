@@ -1,8 +1,10 @@
 # mod-hprv-city
 
 When you're on foot in a capital city, your group bots stop following you at
-1.5 yards and go about their business instead. Each bot rolls a role when it's
-taken over:
+1.5 yards and go about their business instead.
+
+**First, every bot goes shopping, once per city visit.** It walks to one of the
+three nearest repair vendors, sells its junk and repairs. Then it rolls a role:
 
 | Role | Share | What it does |
 |---|---|---|
@@ -17,13 +19,32 @@ Ironforge, Darnassus, the Exodar, Shattrath and Dalaran. The list is
 `CITY_ZONES` in `src/HprvCityWander.cpp`, and the constants beside it set the
 errand share, linger times and distances.
 
+### Shopping trip
+
+- **What's sold:** every grey item, plus white weapons and armour. Nothing else:
+  food, water, reagents, trade goods, ammo and quest items are kept. So are
+  white tools (mining pick, skinning knife, blacksmith hammer, fishing pole),
+  shirts and tabards. Only the backpack and bags are touched, never equipped
+  gear, the bank or the keyring.
+- **Repair:** at normal price with the reputation discount, like a player. An
+  item the bot can't afford stays broken.
+- **Quiet:** mod-playerbots' own `sell` action whispers you once per item. This
+  doesn't. Each bot logs one line to the server log instead:
+  `mod-hprv-city: Crumm at Urtharo: sold 4 items for 312c, repaired for 1840c`.
+- **Once per visit:** mounting up inside the city doesn't reset it. Leaving the
+  zone does.
+- **Real vendors only.** Orgrimmar also has test-realm props with vendor and
+  repair flags ("[DND] TAR Pedestal - Gems", a bare "Weapons Vendor"). A
+  vendor must be selectable and have a subtitle ("Blade Merchant"), and its
+  name must not start with `[DND]`.
+
 ### Errand stops
 
 The world DB's `zoneId` column is 0 for every spawn on this server. So the
 first time you enter a city, the module takes the auctioneer, banker and
 innkeeper spawns and mailboxes within 800 yd of you and keeps the ones whose
 terrain is in that zone. It caches that list per zone until the next restart
-and logs `mod-hprv-city: zone N has M errand stops`. Bots skip NPCs hostile to
+and logs `mod-hprv-city: zone N has M errand stops, K repair vendors`. Bots skip NPCs hostile to
 their faction, which matters in Shattrath and Dalaran. A city with no stops
 found sends every bot milling.
 
