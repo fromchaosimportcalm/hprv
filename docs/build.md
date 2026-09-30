@@ -110,6 +110,26 @@ Three things that will otherwise cost you the whole build:
   `worldserver` link got OOM-killed. Lowering `-j` does not help — the
   final link is one `ld` process.
 
+### Local modules
+
+`modules/` in this repo holds HPRV's own AzerothCore modules. Today that is
+`mod-hprv-city`: group bots wander instead of following in capitals. They sit
+beside mod-playerbots in the source tree and don't patch it. To add or update
+one, from a workstation checkout:
+
+```bash
+rsync -a --chown=acore:acore modules/mod-hprv-city \
+      root@192.168.4.124:/mnt/hprv/build/azerothcore/modules/
+# then on the box, as acore:
+cd /mnt/hprv/build/azerothcore/build
+cmake .            # only needed when a module directory is new
+make -j3 && make install
+```
+
+The relink peaks at 7.4 GB. **Stop `worldserver` first** if it is using
+more than ~4.5 GB, or the link and the live server compete for the same 12 GB.
+Then restart as usual.
+
 The tree is currently built `RelWithDebInfo`. A `Release` rebuild would
 reclaim ~2 GB and lower the link ceiling; it is bundled with the
 `mod-multibot-bridge` addition as one relink rather than paying twice.
