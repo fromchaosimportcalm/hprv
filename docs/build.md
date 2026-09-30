@@ -126,6 +126,19 @@ cmake .            # only needed when a module directory is new
 make -j3 && make install
 ```
 
+**A new module directory recompiles all of mod-playerbots.** Every static
+module shares one include list, so `cmake .` adds the new `src/` to the
+flags of all 633 module objects. That took about 40 minutes at `-j3` on
+2026-09-30. Editing an existing module only recompiles its own files.
+
+So do it in two stages, and keep the server up for the long one:
+
+```bash
+nice -n 19 make -j2 modules      # compile only; safe beside a live server
+# then stop worldserver, and:
+make -j3 && make install         # just the relink (7.4 GB peak) + install
+```
+
 The relink peaks at 7.4 GB. **Stop `worldserver` first** if it is using
 more than ~4.5 GB, or the link and the live server compete for the same 12 GB.
 Then restart as usual.
