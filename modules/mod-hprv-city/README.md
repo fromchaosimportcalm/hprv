@@ -3,13 +3,13 @@
 When you're on foot in a capital city, your group bots stop following you at
 1.5 yards and go about their business instead.
 
-**First, every bot goes shopping, once per city visit.** It walks to one of the
+**First, every bot goes shopping, once per city visit.** It runs to one of the
 three nearest repair vendors, sells its junk and repairs. Then it rolls a role:
 
 | Role | Share | What it does |
 |---|---|---|
-| **Errands** | ~70% | Walks between the city's auctioneers, bankers, innkeepers and mailboxes. It queues a few yards in front of the NPC, faces it and lingers (auction house 15–45 s, bank 10–30 s, inn 20–60 s, mailbox 5–15 s), then picks another stop within 150 yd. It runs to far stops and walks to near ones |
-| **Milling** | the rest | Walks to a random spot 4–25 yd from you, pauses 5–18 s, repeats. If you get more than 60 yd away, it follows until it catches up |
+| **Errands** | ~70% | Runs between the city's auctioneers, bankers, innkeepers and mailboxes. It queues a few yards in front of the NPC, faces it and lingers (auction house 15–45 s, bank 10–30 s, inn 20–60 s, mailbox 5–15 s), then picks another stop within 150 yd |
+| **Milling** | the rest | Runs to a random spot 4–25 yd from you, pauses 5–18 s, repeats. If you get more than 60 yd away, it follows until it catches up |
 
 Whenever you're mounted, in combat, dead, on a taxi or out of the city, every
 bot follows as normal.
@@ -33,6 +33,22 @@ errand share, linger times and distances.
   `mod-hprv-city: Crumm at Urtharo: sold 4 items for 312c, repaired for 1840c`.
 - **Once per visit:** mounting up inside the city doesn't reset it. Leaving the
   zone does.
+- **Reagents, where needed.** After repairing, a bot that's below half its stock
+  of a reagent one of its own spells uses runs on to one of the three nearest
+  reagent vendors and buys back up to stock:
+
+  | Reagent | Stock | For |
+  |---|---|---|
+  | Symbol of Kings | 100 | paladin greater blessings |
+  | Sacred Candle | 40 | Prayer of Fortitude / Spirit / Shadow Protection |
+  | Arcane Powder | 40 | Arcane Brilliance |
+  | Wild Quillvine | 40 | Gift of the Wild |
+  | Flintweed Seed | 10 | Rebirth |
+  | Ankh | 10 | Reincarnation |
+
+  Only top-rank spells count, so nobody buys old-rank reagents. A bot with
+  enough skips this stop. The list is `REAGENTS` in the source. One log line
+  per bot: `mod-hprv-city: Nathos at Horthus: bought 100 reagents for 15000c`.
 - **Real vendors only.** Orgrimmar also has test-realm props with vendor and
   repair flags ("[DND] TAR Pedestal - Gems", a bare "Weapons Vendor"). A
   vendor must be selectable and have a subtitle ("Blade Merchant"), and its
@@ -44,7 +60,7 @@ The world DB's `zoneId` column is 0 for every spawn on this server. So the
 first time you enter a city, the module takes the auctioneer, banker and
 innkeeper spawns and mailboxes within 800 yd of you and keeps the ones whose
 terrain is in that zone. It caches that list per zone until the next restart
-and logs `mod-hprv-city: zone N has M errand stops, K repair vendors`. Bots skip NPCs hostile to
+and logs `mod-hprv-city: zone N has M errand stops, K repair vendors, R reagent vendors`. Bots skip NPCs hostile to
 their faction, which matters in Shattrath and Dalaran. A city with no stops
 found sends every bot milling.
 

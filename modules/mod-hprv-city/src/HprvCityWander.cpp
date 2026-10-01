@@ -3,14 +3,15 @@
  * instead of following at 1.5 yards.
  *
  * While you are on foot in a capital, each bot you're master of drops
- * "follow" from its non-combat engine. Its first job is a shopping trip: walk
+ * "follow" from its non-combat engine. Its first job is a shopping trip: run
  * to a nearby repair vendor, sell grey items and white weapons/armour, and
- * repair. Once per visit. After that it takes one of two roles, rolled each
- * time it's taken over:
+ * repair. Once per visit. A bot low on raid-buff reagents then runs on to
+ * a reagent vendor and tops them up. After that it takes one of two roles,
+ * rolled each time it's taken over:
  *
- *   errands (ERRAND_SHARE)  walks between the city's auctioneers, bankers,
+ *   errands (ERRAND_SHARE)  runs between the city's auctioneers, bankers,
  *                           innkeepers and mailboxes, lingering at each
- *   milling (the rest)      strolls to a random spot near you every few
+ *   milling (the rest)      jogs to a random spot near you every few
  *                           seconds, and follows if you get LEASH yards away
  *
  * Mount up, leave the zone or enter combat, and "follow" goes back.
@@ -38,6 +39,8 @@
 #include "Playerbots.h"
 #include "Random.h"
 #include "ScriptMgr.h"
+#include "SpellInfo.h"
+#include "SpellMgr.h"
 #include "WorldSession.h"
 
 #include <algorithm>
@@ -67,9 +70,25 @@ constexpr uint32 PAUSE_MAX_MS = 18000;
 constexpr float CITY_SCAN = 800.0f;    // spawns this close to you are zone-checked, once per city
 constexpr float ERRAND_REACH = 150.0f;  // next stop is picked from those this close to the bot
 constexpr size_t VENDOR_CHOICE = 3;     // shopping: pick among this many nearest repair vendors
-constexpr float JOG = 30.0f;            // further than this from the stop: run, don't walk
 constexpr float ARRIVED = 3.0f;
 constexpr uint8 MAX_STALLS = 6;  // re-issued moves without getting closer before giving up on a stop
+
+// What a bot keeps in its bags. It only stocks what one of its own active spells
+// uses, goes to a reagent vendor when below half, and buys back up to `stock`.
+struct Reagent
+{
+    uint32 item;
+    uint32 stock;
+};
+
+std::vector<Reagent> const REAGENTS = {
+    {21177, 100},  // Symbol of Kings: paladin greater blessings
+    {17029, 40},   // Sacred Candle: Prayer of Fortitude, Spirit, Shadow Protection
+    {17020, 40},   // Arcane Powder: Arcane Brilliance
+    {22148, 40},   // Wild Quillvine: Gift of the Wild
+    {22147, 10},   // Flintweed Seed: Rebirth
+    {17030, 10},   // Ankh: Reincarnation
+};
 
 enum class PoiKind : uint8 { Auctioneer, Banker, Innkeeper, Mailbox, Vendor };
 
@@ -87,6 +106,7 @@ struct City
 {
     std::vector<Poi> stops;    // errand destinations
     std::vector<Poi> vendors;  // repair vendors, for the shopping trip
+    std::vector<Poi> reagentVendors;
 };
 
 std::unordered_map<uint32, City> cities;
@@ -95,6 +115,7 @@ struct BotState
 {
     bool errands = false;
     bool shopping = false;
+    bool restock = false;  // after shopping: on its way to a reagent vendor
     uint64 nextMs = 0;  // milling: next stroll; otherwise when to leave the current stop
     int32 lastStop = -1;
 
@@ -154,7 +175,8 @@ City const& CityOf(Player* master)
         if (!tmpl || (tmpl->unit_flags & UNIT_FLAG_NOT_SELECTABLE))
             continue;
 
-        bool const vendor = (tmpl->npcflag & UNIT_NPC_FLAG_REPAIR) && IsRealVendor(tmpl);
+        bool const repair = (tmpl->npcflag & UNIT_NPC_FLAG_REPAIR) && IsRealVendor(tmpl);
+        bool const reagents = (tmpl->npcflag & UNIT_NPC_FLAG_VENDOR_REAGENT) && IsRealVendor(tmpl);
         PoiKind kind;
         if (tmpl->npcflag & UNIT_NPC_FLAG_AUCTIONEER)
             kind = PoiKind::Auctioneer;
@@ -162,7 +184,7 @@ City const& CityOf(Player* master)
             kind = PoiKind::Banker;
         else if (tmpl->npcflag & UNIT_NPC_FLAG_INNKEEPER)
             kind = PoiKind::Innkeeper;
-        else if (vendor)
+        else if (repair || reagents)
             kind = PoiKind::Vendor;
         else
             continue;
@@ -171,10 +193,12 @@ City const& CityOf(Player* master)
             continue;
 
         Poi const poi{kind, data.posX, data.posY, data.posZ, data.orientation, data.id, tmpl->faction};
-        if (kind == PoiKind::Vendor)
-            city.vendors.push_back(poi);
-        else
+        if (kind != PoiKind::Vendor)
             city.stops.push_back(poi);
+        if (repair)
+            city.vendors.push_back(poi);
+        if (reagents)
+            city.reagentVendors.push_back(poi);
     }
 
     for (auto const& [spawnId, data] : sObjectMgr->GetAllGOData())
@@ -186,8 +210,8 @@ City const& CityOf(Player* master)
             city.stops.push_back({PoiKind::Mailbox, data.posX, data.posY, data.posZ, data.orientation, 0, 0});
     }
 
-    LOG_INFO("module", "mod-hprv-city: zone {} has {} errand stops, {} repair vendors", zone, city.stops.size(),
-             city.vendors.size());
+    LOG_INFO("module", "mod-hprv-city: zone {} has {} errand stops, {} repair vendors, {} reagent vendors", zone,
+             city.stops.size(), city.vendors.size(), city.reagentVendors.size());
     return city;
 }
 
@@ -334,10 +358,103 @@ void SellAndRepair(Player* bot, Poi const& vendor)
              npc->GetName(), sold, earned, repaired);
 }
 
-void MoveBot(Player* bot, float x, float y, float z, bool run)
+// Always at run speed. Walking pace between short stops, then standing still,
+// read as zombies shuffling about rather than people with somewhere to be.
+// The reagents this bot's active spells use. Lower ranks are learnt but not
+// Active, so a level-70 druid wants Wild Quillvine, not Wild Berries.
+std::vector<Reagent> ReagentsUsed(Player* bot)
 {
-    bot->GetMotionMaster()->MovePoint(0, x, y, z, run ? FORCED_MOVEMENT_RUN : FORCED_MOVEMENT_WALK, 0.0f, 0.0f,
-                                      true, false);
+    std::unordered_set<uint32> used;
+    for (auto const& [spellId, spell] : bot->GetSpellMap())
+    {
+        if (spell->State == PLAYERSPELL_REMOVED || !spell->Active || !spell->IsInSpec(bot->GetActiveSpec()))
+            continue;
+        if (SpellInfo const* info = sSpellMgr->GetSpellInfo(spellId))
+            for (uint8 i = 0; i < MAX_SPELL_REAGENTS; ++i)
+                if (info->Reagent[i] > 0)
+                    used.insert(info->Reagent[i]);
+    }
+
+    std::vector<Reagent> out;
+    for (Reagent const& r : REAGENTS)
+        if (used.count(r.item))
+            out.push_back(r);
+    return out;
+}
+
+bool LowOnReagents(Player* bot)
+{
+    for (Reagent const& r : ReagentsUsed(bot))
+        if (bot->GetItemCount(r.item) < r.stock / 2)
+            return true;
+    return false;
+}
+
+bool SellsNeededReagent(Player* bot, uint32 vendorEntry)
+{
+    VendorItemData const* items = sObjectMgr->GetNpcVendorItemList(vendorEntry);
+    if (!items)
+        return false;
+
+    for (Reagent const& r : ReagentsUsed(bot))
+        if (bot->GetItemCount(r.item) < r.stock / 2)
+            for (uint8 i = 0; i < items->GetItemCount(); ++i)
+                if (VendorItem const* v = items->GetItem(i); v && v->item == r.item && !v->ExtendedCost)
+                    return true;
+    return false;
+}
+
+// Tops every reagent it uses back up to stock, a stack at a time, through the
+// same call the vendor window's buy button reaches.
+void BuyReagents(Player* bot, Poi const& vendor)
+{
+    Creature* npc = bot->FindNearestCreature(vendor.entry, 10.0f);
+    if (!npc)
+        return;
+    VendorItemData const* items = npc->GetVendorItems();
+    if (!items)
+        return;
+
+    // BuyItemFromVendorSlot reads the slot from this vendor's list unless a
+    // gossip-opened vendor is recorded on the session.
+    bot->GetSession()->SetCurrentVendor(0);
+
+    uint32 const moneyBefore = bot->GetMoney();
+    uint32 bought = 0;
+    for (Reagent const& r : ReagentsUsed(bot))
+    {
+        ItemTemplate const* proto = sObjectMgr->GetItemTemplate(r.item);
+        if (!proto || !proto->BuyCount)
+            continue;
+
+        int32 slot = -1;
+        for (uint8 i = 0; i < items->GetItemCount(); ++i)
+            if (VendorItem const* v = items->GetItem(i); v && v->item == r.item && !v->ExtendedCost)
+                slot = i;
+        if (slot < 0)
+            continue;  // this vendor doesn't sell it
+
+        uint32 const lotsPerStack = std::max<uint32>(1, proto->GetMaxStackSize() / proto->BuyCount);
+        uint32 have = bot->GetItemCount(r.item);
+        while (have < r.stock)
+        {
+            uint32 const lots = std::min((r.stock - have + proto->BuyCount - 1) / proto->BuyCount, lotsPerStack);
+            bot->BuyItemFromVendorSlot(npc->GetGUID(), slot, r.item, lots, NULL_BAG, NULL_SLOT);
+            uint32 const now = bot->GetItemCount(r.item);
+            if (now <= have)
+                break;  // bags full, or out of money
+            bought += now - have;
+            have = now;
+        }
+    }
+
+    LOG_INFO("module", "mod-hprv-city: {} at {}: bought {} reagents for {}c", bot->GetName(), npc->GetName(), bought,
+             moneyBefore - bot->GetMoney());
+}
+
+void MoveBot(Player* bot, float x, float y, float z)
+{
+    bot->GetMotionMaster()->MovePoint(0, x, y, z, FORCED_MOVEMENT_RUN, 0.0f, 0.0f, true, false);
 }
 
 void Stroll(Player* bot, Player* master)
@@ -359,7 +476,7 @@ void Stroll(Player* bot, Player* master)
         if (map->IsInWater(bot->GetPhaseMask(), x, y, z, bot->GetCollisionHeight()))
             continue;
 
-        MoveBot(bot, x, y, z, false);
+        MoveBot(bot, x, y, z);
         return;
     }
 }
@@ -419,7 +536,7 @@ bool StartTrip(Player* bot, BotState& s, Poi const& poi, int32 stopIndex)
     s.enRoute = true;
     s.stalls = 0;
     s.bestDist = bot->GetExactDist2d(s.tx, s.ty);
-    MoveBot(bot, s.tx, s.ty, s.tz, s.bestDist > JOG);
+    MoveBot(bot, s.tx, s.ty, s.tz);
     return true;
 }
 
@@ -453,27 +570,30 @@ Trip Advance(Player* bot, BotState& s)
         return Trip::GaveUp;
     }
 
-    MoveBot(bot, s.tx, s.ty, s.tz, dist > JOG);
+    MoveBot(bot, s.tx, s.ty, s.tz);
     return Trip::Walking;
+}
+
+bool GoToNearbyVendor(Player* bot, BotState& s, std::vector<Poi> const& vendors)
+{
+    std::vector<Poi> near;
+    for (Poi const& v : vendors)
+        if (Welcomes(v, bot))
+            near.push_back(v);
+
+    std::sort(near.begin(), near.end(), [bot](Poi const& a, Poi const& b)
+              { return bot->GetExactDist2d(a.x, a.y) < bot->GetExactDist2d(b.x, b.y); });
+    if (near.size() > VENDOR_CHOICE)
+        near.resize(VENDOR_CHOICE);
+
+    return !near.empty() && StartTrip(bot, s, near[urand(0, near.size() - 1)], -1);
 }
 
 // Returns true while the trip is still going.
 bool Shop(Player* bot, Player* master, BotState& s)
 {
     if (!s.enRoute)
-    {
-        std::vector<Poi> near;
-        for (Poi const& v : CityOf(master).vendors)
-            if (Welcomes(v, bot))
-                near.push_back(v);
-
-        std::sort(near.begin(), near.end(), [bot](Poi const& a, Poi const& b)
-                  { return bot->GetExactDist2d(a.x, a.y) < bot->GetExactDist2d(b.x, b.y); });
-        if (near.size() > VENDOR_CHOICE)
-            near.resize(VENDOR_CHOICE);
-
-        return !near.empty() && StartTrip(bot, s, near[urand(0, near.size() - 1)], -1);
-    }
+        return GoToNearbyVendor(bot, s, CityOf(master).vendors);
 
     switch (Advance(bot, s))
     {
@@ -481,6 +601,39 @@ bool Shop(Player* bot, Player* master, BotState& s)
             return true;
         case Trip::Arrived:
             SellAndRepair(bot, s.dest);
+            LingerAt(PoiKind::Vendor, s);
+            return false;
+        case Trip::GaveUp:
+            s.nextMs = After(1000, 3000);
+            return false;
+    }
+    return false;
+}
+
+// The second leg of the shopping trip. Returns true while it's still going.
+bool Restock(Player* bot, Player* master, BotState& s)
+{
+    if (!s.enRoute)
+    {
+        if (NowMs() < s.nextMs)
+            return true;  // still at the repair vendor
+
+        // The reagent flag also marks Inscription Supplies (Xantili in
+        // Orgrimmar), who sells none of these. Only vendors that stock
+        // something this bot is short of.
+        std::vector<Poi> stocked;
+        for (Poi const& v : CityOf(master).reagentVendors)
+            if (SellsNeededReagent(bot, v.entry))
+                stocked.push_back(v);
+        return GoToNearbyVendor(bot, s, stocked);
+    }
+
+    switch (Advance(bot, s))
+    {
+        case Trip::Walking:
+            return true;
+        case Trip::Arrived:
+            BuyReagents(bot, s.dest);
             LingerAt(PoiKind::Vendor, s);
             return false;
         case Trip::GaveUp:
@@ -581,8 +734,9 @@ void Tick(Player* master, MasterState& state)
             // Roll the role up front so the eligibility check knows which leash applies.
             bool const errands = it != state.bots.end() ? it->second.errands : roll_chance_f(ERRAND_SHARE);
             bool const shopping = it != state.bots.end() ? it->second.shopping : !state.shopped.count(guid);
+            bool const restock = it != state.bots.end() && it->second.restock;
 
-            if (!BotCanWander(bot, master, errands || shopping))
+            if (!BotCanWander(bot, master, errands || shopping || restock))
                 continue;
 
             if (it == state.bots.end())
@@ -611,6 +765,16 @@ void Tick(Player* master, MasterState& state)
                 {
                     // Done, or no vendor reachable: either way, once per visit.
                     s.shopping = false;
+                    s.restock = LowOnReagents(bot);
+                    if (!s.restock)
+                        state.shopped.insert(guid);
+                }
+            }
+            else if (s.restock)
+            {
+                if (!Restock(bot, master, s))
+                {
+                    s.restock = false;
                     state.shopped.insert(guid);
                 }
             }
