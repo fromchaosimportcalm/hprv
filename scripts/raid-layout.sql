@@ -14,9 +14,10 @@
 --
 -- subgroup is 0-based: 0 is "Group 1" in the raid UI.
 --
--- It only moves characters already in Bullwark's raid. Anyone missing is
--- reported by the final check, and the transaction is rolled back. Invite
--- them in game, then re-run.
+-- It removes anyone in Bullwark's raid who isn't one of the 25, and moves
+-- the rest into place. It never adds anyone: a missing member fails the
+-- final check, and the transaction is rolled back. Invite them in game,
+-- then re-run.
 
 USE acore_characters;
 
@@ -35,43 +36,39 @@ SELECT gm.guid INTO @raid
 
 SELECT IF(@raid IS NOT NULL, 'ok: Bullwark is in a raid', (SELECT 1 UNION SELECT 2)) AS precheck_raid;
 
+-- The 25 and their parties. 0-based: 0 is "Group 1" in the raid UI.
+DROP TEMPORARY TABLE IF EXISTS hprv_layout;
+CREATE TEMPORARY TABLE hprv_layout (name VARCHAR(12) PRIMARY KEY, subgroup TINYINT UNSIGNED);
+INSERT INTO hprv_layout VALUES
+  -- Group 1: tank, melee, hunter, druid healer       (the ten)
+  ('Bullwark', 0), ('Crumm', 0), ('Anmine', 0), ('Ilyna', 0), ('Restofarian', 0),
+  -- Group 2: casters and the tank healer in Krast's resto totems (the ten)
+  ('Krast', 1), ('Nathos', 1), ('Celerina', 1), ('Dijito', 1), ('Izri', 1),
+  -- Group 3: melee, enhancement totems
+  ('Ararin', 2), ('Gerina', 2), ('Muhnun', 2), ('Zaene', 2), ('Fimur', 2),
+  -- Group 4: casters, elemental totems
+  ('Sehjece', 3), ('Lomul', 3), ('Vestanza', 3), ('Grohtarty', 3), ('Tengwe', 3),
+  -- Group 5: healers, resto totems
+  ('Tanke', 4), ('Irntifumm', 4), ('Olidina', 4), ('Dehme', 4), ('Fehmos', 4);
+
+-- Anyone in the raid who isn't one of the 25 leaves it: a bench body
+-- summoned for a night, or a stray picked up by `.playerbots bot add *`
+-- (2026-10-01: Ralda, Mutlie and Netohje). They are named here first.
+SELECT c.name AS removing_from_raid
+  FROM acore_characters.group_member gm
+  JOIN acore_characters.characters c ON c.guid = gm.memberGuid
+ WHERE gm.guid = @raid AND c.name NOT IN (SELECT name FROM hprv_layout);
+
+DELETE gm FROM acore_characters.group_member gm
+  JOIN acore_characters.characters c ON c.guid = gm.memberGuid
+ WHERE gm.guid = @raid AND c.name NOT IN (SELECT name FROM hprv_layout);
+
 -- Moving a member cannot overfill a group mid-update: group_member has no
 -- per-subgroup constraint, and the checks below assert the end state.
 UPDATE acore_characters.group_member gm
   JOIN acore_characters.characters c ON c.guid = gm.memberGuid
-   SET gm.subgroup = CASE c.name
-        -- Group 1: tank, melee, totems, tank healer        (the ten)
-        WHEN 'Bullwark'    THEN 0
-        WHEN 'Crumm'       THEN 0
-        WHEN 'Anmine'      THEN 0
-        WHEN 'Krast'       THEN 0
-        WHEN 'Nathos'      THEN 0
-        -- Group 2: casters, hunter, druid healer           (the ten)
-        WHEN 'Celerina'    THEN 1
-        WHEN 'Dijito'      THEN 1
-        WHEN 'Izri'        THEN 1
-        WHEN 'Ilyna'       THEN 1
-        WHEN 'Restofarian' THEN 1
-        -- Group 3: melee, enhancement totems
-        WHEN 'Ararin'      THEN 2
-        WHEN 'Gerina'      THEN 2
-        WHEN 'Muhnun'      THEN 2
-        WHEN 'Zaene'       THEN 2
-        WHEN 'Fimur'       THEN 2
-        -- Group 4: casters, elemental totems
-        WHEN 'Sehjece'     THEN 3
-        WHEN 'Lomul'       THEN 3
-        WHEN 'Vestanza'    THEN 3
-        WHEN 'Grohtarty'   THEN 3
-        WHEN 'Tengwe'      THEN 3
-        -- Group 5: healers, resto totems
-        WHEN 'Tanke'       THEN 4
-        WHEN 'Irntifumm'   THEN 4
-        WHEN 'Olidina'     THEN 4
-        WHEN 'Dehme'       THEN 4
-        WHEN 'Fehmos'      THEN 4
-        ELSE gm.subgroup
-       END
+  JOIN hprv_layout l ON l.name = c.name
+   SET gm.subgroup = l.subgroup
  WHERE gm.guid = @raid;
 
 -- Verify inside the transaction. Every line must read ok.

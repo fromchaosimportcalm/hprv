@@ -8,8 +8,8 @@ the 15 simply sit in groups 3–5, offline, on 10-man nights.
 
 | Group | Members | Why |
 |---|---|---|
-| **1** | Bullwark, Crumm, Anmine, Krast, Nathos | Tank + melee in Krast's totems, tank healer beside the tank |
-| **2** | Celerina, Dijito, Izri, Ilyna, Restofarian | Casters + hunter. In the 25, this is the one group without a shaman |
+| **1** | Bullwark, Crumm, Anmine, Ilyna, Restofarian | Tank, melee, hunter, druid healer. No shaman: nobody here would use a resto shaman's totems |
+| **2** | Krast, Nathos, Celerina, Dijito, Izri | Casters and the tank healer in Krast's resto totems (spell power, spell haste, mana) |
 | 3 | Ararin, Gerina, Muhnun, Zaene, Fimur | Melee in enhancement totems (Windfury, Strength of Earth) |
 | 4 | Sehjece, Lomul, Vestanza, Grohtarty, Tengwe | Casters in elemental totems (Totem of Wrath, Wrath of Air) |
 | 5 | Tanke, Irntifumm, Olidina, Dehme, Fehmos | Healers in resto totems and Mana Tide |
@@ -20,8 +20,18 @@ Groups 1–2 are the 10-man. Groups 1–5 are the 25.
 raid-wide, including Bloodlust/Heroism, Battle Shout, auras, Leader of the
 Pack, Moonkin aura and Ferocious Inspiration. What is still party-scoped is
 **shaman totems** and **party heals** (Prayer of Healing). So the layout is
-really "which party gets which shaman's totems". Which totems a bot shaman
-actually drops is its own AI's choice. It hasn't been checked.
+really "which party gets which shaman's totems". A bot shaman drops a fixed
+set by spec (`AiFactory.cpp:333-337`, read 2026-10-02):
+
+| Spec | Totems | Good for |
+|---|---|---|
+| Resto (Krast, Irntifumm) | Stoneskin, Flametongue, Mana Spring, Wrath of Air | casters, healers |
+| Elemental (Sehjece) | Stoneskin, Totem of Wrath, Mana Spring, Wrath of Air | casters |
+| Enhancement (Fimur) | Strength of Earth, Windfury, Healing Stream, Magma | melee |
+
+So a resto shaman goes with casters, not melee. Until 2026-10-02 Krast sat in
+group 1 with the tank and melee, who used none of it but Stoneskin. Changing
+a bot's totems takes a `co` whisper, which is the `CLAUDE.md` rule 2 trap.
 
 ## It persists: set it once
 
@@ -65,9 +75,17 @@ too (`CLAUDE.md` rule 6). All zero is the correct state.
 - **In game (the quick way):** open the raid pane and drag. You're the
   leader, so the swaps take effect immediately and persist.
 - **By script (the exact way):** `scripts/raid-layout.sql`, **with the
-  server stopped**. It moves only characters already in the raid, and its
-  checks roll it back unless all 25 are present, no group holds more than
-  5, and the ten fill groups 1–2 by themselves. Invite anyone missing first.
+  server stopped**. It removes anyone in the raid who isn't one of the 25
+  (it names them first), moves the rest into place, and never adds anyone.
+  Its checks roll it back unless all 25 are present, no group holds more
+  than 5, and the ten fill groups 1–2 by themselves. Invite anyone missing
+  first.
 
-If the roster changes (a bench swap), update this table and the `CASE`
-in `raid-layout.sql` together.
+**Strays come from `.playerbots bot add *`.** It logs in everyone in your
+group, not the roster, so a bench body summoned once keeps coming back
+until it leaves the raid. On 2026-10-01 that was Ralda, Mutlie and Netohje
+(28 in the raid).
+
+
+If the roster changes (a bench swap), update this table and the
+`hprv_layout` list in `raid-layout.sql` together.
