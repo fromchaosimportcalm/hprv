@@ -27,7 +27,7 @@
 --
 -- THE FIGHT
 --
---   Level 73 boss, ~800k HP (HealthModifier 105), DamageModifier 30.
+--   Level 73 boss, 1.23M HP (HealthModifier 162.1 x 7,588), DamageModifier 30.
 --   Faction 14 (hostile to everything), so the Orgrimmar guards pile in,
 --   and so does every bot nearby. So do the city NPCs, who will die.
 --   They respawn.
@@ -72,7 +72,7 @@ UPDATE hprv_ct SET
   `type` = 7,                 -- humanoid
   `faction` = 14,             -- hostile to all
   `AIName` = 'SmartAI', `ScriptName` = '',
-  `HealthModifier` = 105, `DamageModifier` = 30,
+  `HealthModifier` = 162.1, `DamageModifier` = 30,
   `lootid` = @REVENGE;
 
 INSERT INTO `creature_template` SELECT * FROM hprv_ct;
