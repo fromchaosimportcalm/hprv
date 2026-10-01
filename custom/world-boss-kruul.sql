@@ -12,12 +12,15 @@
 -- ---------------------------------------------------------------------
 -- THE FIGHT (all SmartAI, no C++)
 --
---   HP        ~1.2M (HealthModifier 158 x 7,588 base at level 73). For a
---             6-7 minute fight from the tier-4 25. Kazzak is 0.85M,
---             Doomwalker 1.59M.
---   Damage    DamageModifier 40. Kazzak is 65; this is a softer first
---             test for Bullwark. Raise it once we've seen a kill.
---   Shadow Volley   32963  every 10-14 s   raid-wide, healer pressure
+--   HP        ~1.8M (HealthModifier 237 x 7,588 base at level 73).
+--             Kazzak is 0.85M, Doomwalker 1.59M.
+--   Damage    DamageModifier 55. Kazzak is 65.
+--             The first kill (2026-10-02, 158 / 40, ~1.2M) went down
+--             fast with the full 25, so both went up by about half.
+--   Size      DisplayScale 2 on a display the client already draws at
+--             2.0, so 4.0: near Kazzak, who is the same model at 4.5.
+--   Patrol    wanders up to 15 yd from his spawn (MovementType 1).
+--   Shadow Volley   32963  every 8-11 s    raid-wide, healer pressure
 --   Cleave          31779  every 8-12 s    frontal; face him away
 --   Thunderclap     36706  every 18-24 s   melee pressure
 --   Hounds          3 x Hound of Kruul every 60 s from 45 s, each one
@@ -90,7 +93,7 @@ CREATE TEMPORARY TABLE hprv_ct AS SELECT * FROM `creature_template` WHERE `entry
 UPDATE hprv_ct SET
   `entry` = @KRUUL, `name` = 'Highlord Kruul', `subname` = NULL,
   `AIName` = 'SmartAI', `ScriptName` = '',
-  `HealthModifier` = 158, `DamageModifier` = 40,
+  `HealthModifier` = 237, `DamageModifier` = 55,
   `lootid` = @KRUUL
 WHERE `entry` = @KAZZAK;
 
@@ -108,7 +111,7 @@ DROP TEMPORARY TABLE hprv_ct;
 
 INSERT INTO `creature_template_model`
   (`CreatureID`, `Idx`, `CreatureDisplayID`, `DisplayScale`, `Probability`, `VerifiedBuild`)
-SELECT @KRUUL, `Idx`, `CreatureDisplayID`, `DisplayScale`, `Probability`, 0
+SELECT @KRUUL, `Idx`, `CreatureDisplayID`, 2, `Probability`, 0
   FROM `creature_template_model` WHERE `CreatureID` = @STOCK_KRUUL
 UNION ALL
 SELECT @HOUND, `Idx`, `CreatureDisplayID`, `DisplayScale`, `Probability`, 0
@@ -152,7 +155,7 @@ INSERT INTO `smart_scripts`
    `target_x`, `target_y`, `target_z`, `target_o`, `comment`)
 VALUES
   (@KRUUL, 0,  0, 0, 4, 0, 100, 0,       0,      0,      0,      0, 0, 0,  1,     0,     0, 0, 0, 0, 0,  1,  0, 0, 0, 0,  0, 0, 0, 0, 'Kruul - on aggro - yell'),
-  (@KRUUL, 0,  1, 0, 0, 0, 100, 0,    8000,  12000,  10000,  14000, 0, 0, 11, 32963,     0, 0, 0, 0, 0,  2,  0, 0, 0, 0,  0, 0, 0, 0, 'Kruul - IC - Shadow Volley'),
+  (@KRUUL, 0,  1, 0, 0, 0, 100, 0,    8000,  11000,   8000,  11000, 0, 0, 11, 32963,     0, 0, 0, 0, 0,  2,  0, 0, 0, 0,  0, 0, 0, 0, 'Kruul - IC - Shadow Volley'),
   (@KRUUL, 0,  2, 0, 0, 0, 100, 0,    7000,   7000,   8000,  12000, 0, 0, 11, 31779,     0, 0, 0, 0, 0,  2,  0, 0, 0, 0,  0, 0, 0, 0, 'Kruul - IC - Cleave'),
   (@KRUUL, 0,  3, 0, 0, 0, 100, 0,   15000,  18000,  18000,  24000, 0, 0, 11, 36706,     0, 0, 0, 0, 0,  2,  0, 0, 0, 0,  0, 0, 0, 0, 'Kruul - IC - Thunderclap'),
   (@KRUUL, 0,  4, 0, 0, 0, 100, 0,   45000,  45000,  60000,  60000, 0, 0, 12, @HOUND,    4, 15000, 1, 0, 0,  5, 80, 1, 0, 0,  0, 0, 0, 0, 'Kruul - IC - hound on a random raider'),
@@ -192,7 +195,7 @@ INSERT INTO `creature`
    `spawntimesecs`, `wander_distance`, `currentwaypoint`, `curhealth`, `curmana`,
    `MovementType`, `npcflag`, `unit_flags`, `dynamicflags`, `ScriptName`, `CreateObject`, `Comment`)
 VALUES
-  (@GUID, @KRUUL, 530, 0, 0, 1, 1, 0, -3557.3, 2074.0, 71.3, 0, 5400, 0, 0, 1198904, 0, 0, 0, 0, 0, '', 0,
+  (@GUID, @KRUUL, 530, 0, 0, 1, 1, 0, -3557.3, 2074.0, 71.3, 0, 5400, 15, 0, 1798356, 0, 1, 0, 0, 0, '', 0,
    'HPRV world boss - Highlord Kruul, Shadowmoon (game_event 240)');
 
 DELETE FROM `game_event` WHERE `eventEntry` = @EVENT;
