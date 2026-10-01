@@ -12,24 +12,41 @@
 -- ---------------------------------------------------------------------
 -- THE FIGHT (all SmartAI, no C++)
 --
+-- Three phases, every spell borrowed from a boss whose C++ casts it as a
+-- plain spell: Kazzak (Outland), Doomwalker (Outland), Nightbane
+-- (Karazhan). Rebuilt 2026-10-02 after the first kills: "much less
+-- interesting than Doomwalker", and nobody died.
+--
 --   HP        ~1.8M (HealthModifier 237 x 7,588 base at level 73).
 --             Kazzak is 0.85M, Doomwalker 1.59M.
 --   Damage    DamageModifier 55. Kazzak is 65.
---             The first kill (2026-10-02, 158 / 40, ~1.2M) went down
---             fast with the full 25, so both went up by about half.
 --   Size      DisplayScale 2 on a display the client already draws at
 --             2.0, so 4.0: near Kazzak, who is the same model at 4.5.
 --   Patrol    wanders up to 15 yd from his spawn (MovementType 1).
---   Shadow Volley   32963  every 8-11 s    raid-wide, healer pressure
---   Cleave          31779  every 8-12 s    frontal; face him away
---   Thunderclap     36706  every 18-24 s   melee pressure
---   Hounds          3 x Hound of Kruul every 60 s from 45 s, each one
---                   dropped on a random raider and attacking them.
---                   Tests whether DPS bots peel adds off healers with
---                   no bot tank (CLAUDE.md rule 1)
---   Frenzy          32964  below 20 %, every 30 s
---   Berserk         32965  at 10 minutes
---   Loot            10 Badges of Justice + 2 epics from Kazzak's table
+--
+--   All fight     Cleave 31779 (8-12 s) and Sunder Armor 33661 (10-15 s,
+--                 stacks on the tank: there's no one to swap to, so it's
+--                 a soft enrage). Berserk 32965 at 10 minutes.
+--
+--   1  100-65 %   "The Herald". Shadow Volley 32963 (12-16 s) and Void
+--                 Bolt 39329 on a random raider (15-20 s): one big
+--                 shadow hit that kills a sleeping cloth wearer.
+--
+--   2   65-30 %   "Kneel". On entry: Bellowing Roar 36922, a raid-wide
+--                 fear (Nightbane's), and four Hounds of Kruul on random
+--                 raiders. Then Chain Lightning 33665 (10-14 s, random),
+--                 Charred Earth 30129 under a random raider (15-20 s,
+--                 Nightbane's fire patch: don't stand in it), three
+--                 hounds every 45 s, and another Roar every 40-50 s.
+--                 Shadow Volley carries on, slower (14-18 s).
+--
+--   3   30-0 %    "Doom". On entry: Doomwalker's Enrage 33653 and an
+--                 Earthquake 32686. Then Earthquake every 25-35 s
+--                 (knockdowns around him), Frenzy 32964 every 30 s,
+--                 Void Bolt and Chain Lightning back together. No more
+--                 hounds or fear.
+--
+--   Loot      10 Badges of Justice + 2 epics from Kazzak's table
 --
 -- THE EVENT
 --
@@ -128,21 +145,28 @@ INSERT INTO `creature_text`
 VALUES
   (@KRUUL, 0, 0, 'Shadowmoon burns, and you came to warm your hands? Kneel, mortals!', 14, 0, 100, 0, 0, 0, 0, 2, 'Highlord Kruul - aggro'),
   (@KRUUL, 1, 0, '%s calls the Hounds of Kruul!',                                       41, 0, 100, 0, 0, 0, 0, 2, 'Highlord Kruul - hounds'),
-  (@KRUUL, 2, 0, 'Enough! I will tear this valley apart!',                              14, 0, 100, 0, 0, 0, 0, 2, 'Highlord Kruul - frenzy at 20%'),
+  (@KRUUL, 2, 0, 'Enough! Feel the doom of the Legion!',                                14, 0, 100, 0, 0, 0, 0, 2, 'Highlord Kruul - phase 3'),
   (@KRUUL, 3, 0, 'Another soul for the Legion.',                                        14, 0, 100, 0, 0, 0, 0, 2, 'Highlord Kruul - kill'),
+  (@KRUUL, 3, 1, 'Your master will join you soon.',                                     14, 0, 100, 0, 0, 0, 0, 2, 'Highlord Kruul - kill'),
   (@KRUUL, 4, 0, 'This... is not... the end. The Legion... is endless...',              14, 0, 100, 0, 0, 0, 0, 2, 'Highlord Kruul - death'),
-  (@KRUUL, 5, 0, 'You have wasted my time. Now you will waste away!',                   14, 0, 100, 0, 0, 0, 0, 2, 'Highlord Kruul - berserk');
+  (@KRUUL, 5, 0, 'You have wasted my time. Now you will waste away!',                   14, 0, 100, 0, 0, 0, 0, 2, 'Highlord Kruul - berserk'),
+  (@KRUUL, 6, 0, 'KNEEL! Kneel before the Highlord!',                                   14, 0, 100, 0, 0, 0, 0, 2, 'Highlord Kruul - phase 2');
 
 -- ---------------------------------------------------------------------
 -- SmartAI. Event types: 0 in-combat timer (initial min/max, repeat
--- min/max), 2 health %, 4 aggro, 5 kill, 6 death. Actions: 1 talk,
--- 11 cast, 12 summon. Targets: 1 self, 2 victim, 5 random hostile
--- (max distance, players only). event_flags 1 = once.
+-- min/max), 2 health % (min, max, repeat min/max), 4 aggro, 5 kill,
+-- 6 death. Actions: 1 talk, 11 cast, 12 summon, 22 set phase.
+-- Targets: 1 self, 2 victim, 5 random hostile (max distance, players
+-- only). event_flags 1 = once per fight.
 --
--- The four hound rows share one fixed timer so the pack and the emote
--- arrive together. Summon type 4 = despawn 15 s after leaving combat,
--- which also clears corpses. attackInvoker 1 = attack the raider it was
--- dropped on.
+-- Phases: aggro sets phase 1; the 65 % and 30 % rows set 2 and 3. An
+-- event's phase mask is a bitmask of the phases it runs in (1 = phase 1,
+-- 2 = phase 2, 4 = phase 3, 0 = always). The phase resets to 0 on
+-- evade, so a wipe starts the next pull at phase 1.
+--
+-- Hounds: summon type 4 = despawn 15 s after leaving combat, which also
+-- clears corpses. attackInvoker 1 = attack the raider it was dropped on.
+-- The rows of one wave share one fixed timer so they arrive together.
 -- ---------------------------------------------------------------------
 
 DELETE FROM `smart_scripts` WHERE `entryorguid` IN (@KRUUL, @HOUND) AND `source_type` = 0;
@@ -154,20 +178,49 @@ INSERT INTO `smart_scripts`
    `target_type`, `target_param1`, `target_param2`, `target_param3`, `target_param4`,
    `target_x`, `target_y`, `target_z`, `target_o`, `comment`)
 VALUES
-  (@KRUUL, 0,  0, 0, 4, 0, 100, 0,       0,      0,      0,      0, 0, 0,  1,     0,     0, 0, 0, 0, 0,  1,  0, 0, 0, 0,  0, 0, 0, 0, 'Kruul - on aggro - yell'),
-  (@KRUUL, 0,  1, 0, 0, 0, 100, 0,    8000,  11000,   8000,  11000, 0, 0, 11, 32963,     0, 0, 0, 0, 0,  2,  0, 0, 0, 0,  0, 0, 0, 0, 'Kruul - IC - Shadow Volley'),
-  (@KRUUL, 0,  2, 0, 0, 0, 100, 0,    7000,   7000,   8000,  12000, 0, 0, 11, 31779,     0, 0, 0, 0, 0,  2,  0, 0, 0, 0,  0, 0, 0, 0, 'Kruul - IC - Cleave'),
-  (@KRUUL, 0,  3, 0, 0, 0, 100, 0,   15000,  18000,  18000,  24000, 0, 0, 11, 36706,     0, 0, 0, 0, 0,  2,  0, 0, 0, 0,  0, 0, 0, 0, 'Kruul - IC - Thunderclap'),
-  (@KRUUL, 0,  4, 0, 0, 0, 100, 0,   45000,  45000,  60000,  60000, 0, 0, 12, @HOUND,    4, 15000, 1, 0, 0,  5, 80, 1, 0, 0,  0, 0, 0, 0, 'Kruul - IC - hound on a random raider'),
-  (@KRUUL, 0,  5, 0, 0, 0, 100, 0,   45000,  45000,  60000,  60000, 0, 0, 12, @HOUND,    4, 15000, 1, 0, 0,  5, 80, 1, 0, 0,  0, 0, 0, 0, 'Kruul - IC - hound on a random raider'),
-  (@KRUUL, 0,  6, 0, 0, 0, 100, 0,   45000,  45000,  60000,  60000, 0, 0, 12, @HOUND,    4, 15000, 1, 0, 0,  5, 80, 1, 0, 0,  0, 0, 0, 0, 'Kruul - IC - hound on a random raider'),
-  (@KRUUL, 0,  7, 0, 0, 0, 100, 0,   45000,  45000,  60000,  60000, 0, 0,  1,     1,     0, 0, 0, 0, 0,  1,  0, 0, 0, 0,  0, 0, 0, 0, 'Kruul - IC - hounds emote'),
-  (@KRUUL, 0,  8, 0, 2, 0, 100, 0,       0,     20,  30000,  30000, 0, 0, 11, 32964,     0, 0, 0, 0, 0,  1,  0, 0, 0, 0,  0, 0, 0, 0, 'Kruul - below 20% - Frenzy, every 30 s'),
-  (@KRUUL, 0,  9, 0, 2, 0, 100, 1,       0,     20,      0,      0, 0, 0,  1,     2,     0, 0, 0, 0, 0,  1,  0, 0, 0, 0,  0, 0, 0, 0, 'Kruul - below 20% - yell, once'),
-  (@KRUUL, 0, 10, 0, 0, 0, 100, 1,  600000, 600000,      0,      0, 0, 0, 11, 32965,     0, 0, 0, 0, 0,  1,  0, 0, 0, 0,  0, 0, 0, 0, 'Kruul - 10 min - Berserk'),
-  (@KRUUL, 0, 11, 0, 0, 0, 100, 1,  600000, 600000,      0,      0, 0, 0,  1,     5,     0, 0, 0, 0, 0,  1,  0, 0, 0, 0,  0, 0, 0, 0, 'Kruul - 10 min - berserk yell'),
-  (@KRUUL, 0, 12, 0, 5, 0, 100, 0,    5000,  10000,      1,      0, 0, 0,  1,     3,     0, 0, 0, 0, 0,  1,  0, 0, 0, 0,  0, 0, 0, 0, 'Kruul - killed a player - yell'),
-  (@KRUUL, 0, 13, 0, 6, 0, 100, 0,       0,      0,      0,      0, 0, 0,  1,     4,     0, 0, 0, 0, 0,  1,  0, 0, 0, 0,  0, 0, 0, 0, 'Kruul - on death - yell');
+  -- Always
+  (@KRUUL, 0,  0, 0, 4, 0, 100, 0,       0,      0,      0,      0, 0, 0,  1,     0,     0,     0, 0, 0, 0,  1,  0, 0, 0, 0,  0, 0, 0, 0, 'Kruul - aggro - yell'),
+  (@KRUUL, 0,  1, 0, 4, 0, 100, 0,       0,      0,      0,      0, 0, 0, 22,     1,     0,     0, 0, 0, 0,  1,  0, 0, 0, 0,  0, 0, 0, 0, 'Kruul - aggro - phase 1'),
+  (@KRUUL, 0,  2, 0, 0, 0, 100, 0,    7000,   7000,   8000,  12000, 0, 0, 11, 31779,     0,     0, 0, 0, 0,  2,  0, 0, 0, 0,  0, 0, 0, 0, 'Kruul - Cleave'),
+  (@KRUUL, 0,  3, 0, 0, 0, 100, 0,    5000,  10000,  10000,  15000, 0, 0, 11, 33661,     0,     0, 0, 0, 0,  2,  0, 0, 0, 0,  0, 0, 0, 0, 'Kruul - Sunder Armor on the tank'),
+  (@KRUUL, 0,  4, 0, 0, 0, 100, 1,  600000, 600000,      0,      0, 0, 0, 11, 32965,     0,     0, 0, 0, 0,  1,  0, 0, 0, 0,  0, 0, 0, 0, 'Kruul - 10 min - Berserk'),
+  (@KRUUL, 0,  5, 0, 0, 0, 100, 1,  600000, 600000,      0,      0, 0, 0,  1,     5,     0,     0, 0, 0, 0,  1,  0, 0, 0, 0,  0, 0, 0, 0, 'Kruul - 10 min - berserk yell'),
+  (@KRUUL, 0,  6, 0, 5, 0, 100, 0,    5000,  10000,      1,      0, 0, 0,  1,     3,     0,     0, 0, 0, 0,  1,  0, 0, 0, 0,  0, 0, 0, 0, 'Kruul - killed a player - yell'),
+  (@KRUUL, 0,  7, 0, 6, 0, 100, 0,       0,      0,      0,      0, 0, 0,  1,     4,     0,     0, 0, 0, 0,  1,  0, 0, 0, 0,  0, 0, 0, 0, 'Kruul - death - yell'),
+
+  -- Phase 1 (mask 1) and the casts that carry into later phases
+  (@KRUUL, 0, 10, 0, 0, 1, 100, 0,    8000,  10000,  12000,  16000, 0, 0, 11, 32963,     0,     0, 0, 0, 0,  2,  0, 0, 0, 0,  0, 0, 0, 0, 'Kruul - p1 - Shadow Volley'),
+  (@KRUUL, 0, 11, 0, 0, 5, 100, 0,   12000,  15000,  15000,  20000, 0, 0, 11, 39329,     0,     0, 0, 0, 0,  5, 80, 1, 0, 0,  0, 0, 0, 0, 'Kruul - p1+p3 - Void Bolt on a random raider'),
+
+  -- 65 %: into phase 2
+  (@KRUUL, 0, 20, 0, 2, 0, 100, 1,       0,     65,      0,      0, 0, 0, 22,     2,     0,     0, 0, 0, 0,  1,  0, 0, 0, 0,  0, 0, 0, 0, 'Kruul - 65% - phase 2'),
+  (@KRUUL, 0, 21, 0, 2, 0, 100, 1,       0,     65,      0,      0, 0, 0,  1,     6,     0,     0, 0, 0, 0,  1,  0, 0, 0, 0,  0, 0, 0, 0, 'Kruul - 65% - yell'),
+  (@KRUUL, 0, 22, 0, 2, 0, 100, 1,       0,     65,      0,      0, 0, 0, 11, 36922,     2,     0, 0, 0, 0,  1,  0, 0, 0, 0,  0, 0, 0, 0, 'Kruul - 65% - Bellowing Roar (fear)'),
+  (@KRUUL, 0, 23, 0, 2, 0, 100, 1,       0,     65,      0,      0, 0, 0, 12, @HOUND,    4, 15000, 1, 0, 0,  5, 80, 1, 0, 0,  0, 0, 0, 0, 'Kruul - 65% - hound'),
+  (@KRUUL, 0, 24, 0, 2, 0, 100, 1,       0,     65,      0,      0, 0, 0, 12, @HOUND,    4, 15000, 1, 0, 0,  5, 80, 1, 0, 0,  0, 0, 0, 0, 'Kruul - 65% - hound'),
+  (@KRUUL, 0, 25, 0, 2, 0, 100, 1,       0,     65,      0,      0, 0, 0, 12, @HOUND,    4, 15000, 1, 0, 0,  5, 80, 1, 0, 0,  0, 0, 0, 0, 'Kruul - 65% - hound'),
+  (@KRUUL, 0, 26, 0, 2, 0, 100, 1,       0,     65,      0,      0, 0, 0, 12, @HOUND,    4, 15000, 1, 0, 0,  5, 80, 1, 0, 0,  0, 0, 0, 0, 'Kruul - 65% - hound'),
+  (@KRUUL, 0, 27, 0, 2, 0, 100, 1,       0,     65,      0,      0, 0, 0,  1,     1,     0,     0, 0, 0, 0,  1,  0, 0, 0, 0,  0, 0, 0, 0, 'Kruul - 65% - hounds emote'),
+
+  -- Phase 2 (mask 2)
+  (@KRUUL, 0, 30, 0, 0, 2, 100, 0,   14000,  18000,  14000,  18000, 0, 0, 11, 32963,     0,     0, 0, 0, 0,  2,  0, 0, 0, 0,  0, 0, 0, 0, 'Kruul - p2 - Shadow Volley'),
+  (@KRUUL, 0, 31, 0, 0, 6, 100, 0,    6000,   9000,  10000,  14000, 0, 0, 11, 33665,     0,     0, 0, 0, 0,  5, 80, 1, 0, 0,  0, 0, 0, 0, 'Kruul - p2+p3 - Chain Lightning'),
+  (@KRUUL, 0, 32, 0, 0, 2, 100, 0,   10000,  12000,  15000,  20000, 0, 0, 11, 30129,     0,     0, 0, 0, 0,  5, 80, 1, 0, 0,  0, 0, 0, 0, 'Kruul - p2 - Charred Earth under a raider'),
+  (@KRUUL, 0, 33, 0, 0, 2, 100, 0,   40000,  50000,  40000,  50000, 0, 0, 11, 36922,     2,     0, 0, 0, 0,  1,  0, 0, 0, 0,  0, 0, 0, 0, 'Kruul - p2 - Bellowing Roar'),
+  (@KRUUL, 0, 34, 0, 0, 2, 100, 0,   45000,  45000,  45000,  45000, 0, 0, 12, @HOUND,    4, 15000, 1, 0, 0,  5, 80, 1, 0, 0,  0, 0, 0, 0, 'Kruul - p2 - hound'),
+  (@KRUUL, 0, 35, 0, 0, 2, 100, 0,   45000,  45000,  45000,  45000, 0, 0, 12, @HOUND,    4, 15000, 1, 0, 0,  5, 80, 1, 0, 0,  0, 0, 0, 0, 'Kruul - p2 - hound'),
+  (@KRUUL, 0, 36, 0, 0, 2, 100, 0,   45000,  45000,  45000,  45000, 0, 0, 12, @HOUND,    4, 15000, 1, 0, 0,  5, 80, 1, 0, 0,  0, 0, 0, 0, 'Kruul - p2 - hound'),
+  (@KRUUL, 0, 37, 0, 0, 2, 100, 0,   45000,  45000,  45000,  45000, 0, 0,  1,     1,     0,     0, 0, 0, 0,  1,  0, 0, 0, 0,  0, 0, 0, 0, 'Kruul - p2 - hounds emote'),
+
+  -- 30 %: into phase 3
+  (@KRUUL, 0, 40, 0, 2, 0, 100, 1,       0,     30,      0,      0, 0, 0, 22,     3,     0,     0, 0, 0, 0,  1,  0, 0, 0, 0,  0, 0, 0, 0, 'Kruul - 30% - phase 3'),
+  (@KRUUL, 0, 41, 0, 2, 0, 100, 1,       0,     30,      0,      0, 0, 0,  1,     2,     0,     0, 0, 0, 0,  1,  0, 0, 0, 0,  0, 0, 0, 0, 'Kruul - 30% - yell'),
+  (@KRUUL, 0, 42, 0, 2, 0, 100, 1,       0,     30,      0,      0, 0, 0, 11, 33653,     2,     0, 0, 0, 0,  1,  0, 0, 0, 0,  0, 0, 0, 0, 'Kruul - 30% - Enrage'),
+  (@KRUUL, 0, 43, 0, 2, 0, 100, 1,       0,     30,      0,      0, 0, 0, 11, 32686,     2,     0, 0, 0, 0,  1,  0, 0, 0, 0,  0, 0, 0, 0, 'Kruul - 30% - Earthquake'),
+
+  -- Phase 3 (mask 4)
+  (@KRUUL, 0, 50, 0, 0, 4, 100, 0,   25000,  35000,  25000,  35000, 0, 0, 11, 32686,     0,     0, 0, 0, 0,  1,  0, 0, 0, 0,  0, 0, 0, 0, 'Kruul - p3 - Earthquake'),
+  (@KRUUL, 0, 51, 0, 0, 4, 100, 0,   30000,  30000,  30000,  30000, 0, 0, 11, 32964,     0,     0, 0, 0, 0,  1,  0, 0, 0, 0,  0, 0, 0, 0, 'Kruul - p3 - Frenzy');
 
 -- ---------------------------------------------------------------------
 -- Loot. Badges are one stack to whoever wins it; the bots roll need on
