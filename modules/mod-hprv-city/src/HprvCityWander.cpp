@@ -837,4 +837,70 @@ public:
     }
 };
 
-void AddHprvCityWanderScripts() { new HprvCityWanderPlayerScript(); }
+// ---------------------------------------------------------------------
+// Bots wear their own armour type.
+//
+// At the pin, mod-playerbots lets a bot need-roll and equip armour below
+// its class's type. In ItemUsageValue::QueryItemUsageForEquip a plain
+// score comparison overwrites RandomItemMgr::CanEquipArmor's "wrong armour
+// type", and the "don't drop an armour type" guard has no break, so it
+// falls through to "equip". CanEquipArmor also has no death knight row and
+// takes a DK for a cloth wearer. Found 2026-10-02: Treads of the Den Mother
+// (leather) needed by Zaene, Ararin and Crumm, and Crumm put them on.
+//
+// Every bot check goes through Player::CanUseItem, which runs this hook,
+// so refusing lower armour here stops both the roll and the equip without
+// patching the module. Level 40 and up only (when warriors and paladins
+// get plate, hunters and shamans mail). Real players, cloaks, shields,
+// relics, rings, necks and trinkets are untouched.
+// ---------------------------------------------------------------------
+namespace
+{
+uint32 OwnArmorType(uint8 cls)
+{
+    switch (cls)
+    {
+        case CLASS_WARRIOR:
+        case CLASS_PALADIN:
+        case CLASS_DEATH_KNIGHT:
+            return ITEM_SUBCLASS_ARMOR_PLATE;
+        case CLASS_HUNTER:
+        case CLASS_SHAMAN:
+            return ITEM_SUBCLASS_ARMOR_MAIL;
+        case CLASS_ROGUE:
+        case CLASS_DRUID:
+            return ITEM_SUBCLASS_ARMOR_LEATHER;
+        default:
+            return ITEM_SUBCLASS_ARMOR_CLOTH;
+    }
+}
+}  // namespace
+
+class HprvArmorTypePlayerScript : public PlayerScript
+{
+public:
+    HprvArmorTypePlayerScript() : PlayerScript("HprvArmorTypePlayerScript", {PLAYERHOOK_CAN_USE_ITEM}) {}
+
+    bool OnPlayerCanUseItem(Player* player, ItemTemplate const* proto, InventoryResult& result) override
+    {
+        if (proto->Class != ITEM_CLASS_ARMOR || proto->InventoryType == INVTYPE_CLOAK ||
+            proto->SubClass < ITEM_SUBCLASS_ARMOR_CLOTH || proto->SubClass > ITEM_SUBCLASS_ARMOR_PLATE)
+            return true;
+
+        if (player->GetLevel() < 40 || proto->SubClass >= OwnArmorType(player->getClass()))
+            return true;
+
+        PlayerbotAI* ai = GET_PLAYERBOT_AI(player);
+        if (!ai || ai->IsRealPlayer())
+            return true;
+
+        result = EQUIP_ERR_CANT_EQUIP_SKILL;
+        return false;
+    }
+};
+
+void AddHprvCityWanderScripts()
+{
+    new HprvCityWanderPlayerScript();
+    new HprvArmorTypePlayerScript();
+}

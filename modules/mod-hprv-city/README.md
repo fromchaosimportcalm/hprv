@@ -97,3 +97,19 @@ If a bot stands still after logging in, whisper it `nc +follow`.
 Static module, discovered by CMake from `modules/*/src`. It includes
 mod-playerbots headers but doesn't patch them, so the pin in
 `scripts/pins.conf` still holds. See `docs/build.md` → *Local modules*.
+
+## Also here: bots wear their own armour type
+
+Not a city feature, but it lives in this module to avoid a CMake re-run.
+At the pin, mod-playerbots lets a bot need-roll and equip armour below its
+class's type, and takes a death knight for a cloth wearer
+(`ItemUsageValue::QueryItemUsageForEquip`: a score comparison overwrites
+`CanEquipArmor`'s verdict, and the armour-type guard falls through to
+"equip"). On 2026-10-02 two paladins and a DK needed Treads of the Den
+Mother (leather), and Crumm wore them.
+
+`HprvArmorTypePlayerScript` hooks `Player::CanUseItem`, which every bot
+check goes through, and refuses armour below the bot's own type from level
+40: plate for warriors, paladins and DKs, mail for hunters and shamans,
+leather for rogues and druids. The bot passes or greeds instead, and never
+equips it. Real players, cloaks, shields, relics and jewellery are untouched.

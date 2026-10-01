@@ -12,8 +12,8 @@
 --
 -- Gamon (6466, the spawn at 1637.5, -4438 in Orgrimmar, 5-minute
 -- respawn) gets a SmartAI death event with event_chance 1: each death has
--- a 1 % chance to summon Gamon's Revenge on his corpse, attacking the
--- killer. That's "about every 100 kills" on average, with no counter to
+-- a 1 % chance to summon Gamon's Revenge on top of his killer, attacking
+-- them. That's "about every 100 kills" on average, with no counter to
 -- keep. The unlucky can go 300 kills; the lucky get him on the first.
 --
 -- This is the one change to a stock row: Gamon's AIName becomes
@@ -22,7 +22,8 @@
 --
 -- To test without killing Gamon a hundred times, on a GM account:
 --   .npc add temp 9100030
--- spawns him in front of you, not saved to the DB.
+-- spawns him in front of you, not saved to the DB. He has no killer to
+-- chase that way, so hit him first.
 --
 -- THE FIGHT
 --
@@ -30,8 +31,9 @@
 --   Faction 14 (hostile to everything), so the Orgrimmar guards pile in,
 --   and so does every bot nearby. So do the city NPCs, who will die.
 --   They respawn.
---   On arrival he yells to the whole server, and puts everyone within 50
---   yd into combat with him.
+--   On arrival he yells to the whole server and goes for Gamon's killer.
+--   (SmartAI's "everyone in range into combat" works in instances only,
+--   and takes no range at this pin, so the town joins in by aggro.)
 --     Cleave       31779  8-12 s
 --     Thunderclap  36706  12-16 s
 --     Thunderfury  21992  every 8-12 s: the real proc, which chains
@@ -122,11 +124,12 @@ INSERT INTO `smart_scripts`
    `target_x`, `target_y`, `target_z`, `target_o`, `comment`)
 VALUES
   -- Gamon: 1 % on death. Summon type 1 = despawn after 30 min or on death
-  -- (the corpse stays for looting first). attackInvoker 2 = attack the killer.
-  (@GAMON,   0, 0, 0,  6, 0,   1, 0,     0,     0,     0,     0, 0, 0, 12, @REVENGE, 1, 1800000, 2, 0, 0,  1,  0, 0, 0, 0,  0, 0, 0, 0, 'Gamon - death - 1% - Gamon''s Revenge'),
+  -- (the corpse stays for looting first). Target 7 is the killer: Revenge
+  -- appears on top of them, and attackInvoker 1 sets him on them.
+  -- (attackInvoker 2 is rejected at this pin: 0 or 1 only.)
+  (@GAMON,   0, 0, 0,  6, 0,   1, 0,     0,     0,     0,     0, 0, 0, 12, @REVENGE, 1, 1800000, 1, 0, 0,  7,  0, 0, 0, 0,  0, 0, 0, 0, 'Gamon - death - 1% - Gamon''s Revenge on his killer'),
 
   (@REVENGE, 0, 0, 0, 54, 0, 100, 0,     0,     0,     0,     0, 0, 0,  1,     0,     0, 0, 0, 0, 0,  1,  0, 0, 0, 0,  0, 0, 0, 0, 'Gamon''s Revenge - arrival - server-wide yell'),
-  (@REVENGE, 0, 1, 0, 54, 0, 100, 0,     0,     0,     0,     0, 0, 0, 38,    50,     0, 0, 0, 0, 0,  1,  0, 0, 0, 0,  0, 0, 0, 0, 'Gamon''s Revenge - arrival - everyone in 50 yd into combat'),
   (@REVENGE, 0, 2, 0,  0, 0, 100, 0,  5000,  8000,  8000, 12000, 0, 0, 11, 31779,     0, 0, 0, 0, 0,  2,  0, 0, 0, 0,  0, 0, 0, 0, 'Gamon''s Revenge - Cleave'),
   (@REVENGE, 0, 3, 0,  0, 0, 100, 0, 10000, 12000, 12000, 16000, 0, 0, 11, 36706,     0, 0, 0, 0, 0,  2,  0, 0, 0, 0,  0, 0, 0, 0, 'Gamon''s Revenge - Thunderclap'),
   (@REVENGE, 0, 4, 0,  0, 0, 100, 0,  4000,  6000,  8000, 12000, 0, 0, 11, 21992,     0, 0, 0, 0, 0,  2,  0, 0, 0, 0,  0, 0, 0, 0, 'Gamon''s Revenge - Thunderfury on his target (melee range; it chains)'),
