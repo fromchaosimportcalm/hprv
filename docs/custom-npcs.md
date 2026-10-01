@@ -34,6 +34,7 @@ column.
 | 9100004 | **Torvek Ashforge** | T4/T5/T6 raid-drop weapons, shields, off-hands, relics, free (95) | `weapon-vendor.sql`, free via `weapon-vendor-free-prices.sql` |
 | 9100020 | **Highlord Kruul** | 25-man world boss test, Shadowmoon Valley. Spawned only by `game_event` 240 (`.event start 240`, 90 min). Not packaged by `package-npcs.sh` | `world-boss-kruul.sql`, `world-boss-kruul-uninstall.sql` |
 | 9100021 | **Hound of Kruul** | Kruul's summoned add | `world-boss-kruul.sql` |
+| 9100030 | **Gamon, He Remembers** | Gamon's Revenge: 1 % of Gamon's (6466) deaths summon him, level 73 with Thunderfury and a Warglaive, hostile to all of Orgrimmar. Gamon himself gets `AIName = 'SmartAI'` and one death row, the only stock change. Test: `.npc add temp 9100030` | `gamons-revenge.sql`, `gamons-revenge-uninstall.sql` |
 
 ## The ID range
 
