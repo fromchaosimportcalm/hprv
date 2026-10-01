@@ -321,7 +321,10 @@ measurement taken. Do not assume 60+.
 RAM note: the container runs at 12 GB. It was 6 GB during the build era
 and had to be raised, because the `worldserver` **link** peaks at 7.4 GB
 and gets OOM-killed at 6. Dropping `-j` does not help — the final link is
-one `ld` process. At 12 GB standing this is no longer a special case.
+one `ld` process. At 12 GB it fits **only with the worldserver stopped**:
+a running server holds ~4–5 GB, and on 2026-10-01 the link was killed
+(`collect2: fatal error: ld terminated with signal 9 [Killed]`) twice
+with it up. Stop the server, `make worldserver && make install`, start it.
 
 ---
 

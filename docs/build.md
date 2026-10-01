@@ -123,7 +123,10 @@ rsync -a --chown=acore:acore modules/mod-hprv-city \
 # then on the box, as acore:
 cd /mnt/hprv/build/azerothcore/build
 cmake .            # only needed when a module directory is new
+make -j3           # compiles fine with the server up; the link will not
+systemctl stop hprv-worldserver   # (as root) — the link needs the ~5 GB the server holds
 make -j3 && make install
+systemctl start hprv-worldserver  # (as root)
 ```
 
 **A new module directory recompiles all of mod-playerbots.** Every static
