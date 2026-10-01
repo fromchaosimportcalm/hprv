@@ -32,13 +32,18 @@ column.
 | 9100002 | **Veshan Coilhand** | Tier 5 set pieces, free (85) | `tier-vendors.sql` |
 | 9100003 | **Oriel Duskmantle** | Tier 6 set pieces incl. Sunwell wrist/waist/feet, free (136) | `tier-vendors.sql` |
 | 9100004 | **Torvek Ashforge** | T4/T5/T6 raid-drop weapons, shields, off-hands, relics, free (95) | `weapon-vendor.sql`, free via `weapon-vendor-free-prices.sql` |
+| 9100020 | **Highlord Kruul** | 25-man world boss test, Shadowmoon Valley. Spawned only by `game_event` 240 (`.event start 240`, 90 min). Not packaged by `package-npcs.sh` | `world-boss-kruul.sql`, `world-boss-kruul-uninstall.sql` |
+| 9100021 | **Hound of Kruul** | Kruul's summoned add | `world-boss-kruul.sql` |
 
 ## The ID range
 
 **9100000–9100099 is ours**, in every table: `creature_template`,
 `creature` (spawn guid = entry), `gossip_menu`, `npc_text`,
 `smart_scripts`, `npc_vendor`. Spawn guids: 9100000–04 in Orgrimmar
-and 9100010–14 in Stormwind (entry + 10). Each file's spawn `DELETE`
+and 9100010–14 in Stormwind (entry + 10); 9100020 is Kruul in Shadowmoon.
+**`game_event` IDs 240–249 are ours too.** `eventEntry` is a `tinyint`, so
+they can't share the 9100000 range; the highest stock event was 190 on
+2026-10-01. 240 is Kruul. Each file's spawn `DELETE`
 also sweeps its NPC's spawns *outside* the range (a stray `.npc add`),
 but leaves the range alone, so the two cities' files never remove each
 other's spawns. It was empty on 2026-09-25; the highest
