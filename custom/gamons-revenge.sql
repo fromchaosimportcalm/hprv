@@ -3,7 +3,7 @@
 --   mysql acore_world < gamons-revenge.sql      # then restart the worldserver
 --
 -- Gamon is the level-12 orc in Orgrimmar whom everyone has killed. Now,
--- about one time in a hundred, he doesn't stay dead. He comes back as a
+-- about one time in ten, he doesn't stay dead. He comes back as a
 -- giant, level 73, wielding Thunderfury and a Warglaive of Azzinoth, and
 -- takes it out on whoever killed him, then on the rest of the town.
 --
@@ -11,16 +11,17 @@
 -- HOW IT TRIGGERS
 --
 -- Gamon (6466, the spawn at 1637.5, -4438 in Orgrimmar, 5-minute
--- respawn) gets a SmartAI death event with event_chance 1: each death has
--- a 1 % chance to summon Gamon's Revenge on top of his killer, attacking
--- them. That's "about every 100 kills" on average, with no counter to
--- keep. The unlucky can go 300 kills; the lucky get him on the first.
+-- respawn) gets a SmartAI death event with event_chance 10: each death
+-- has a 10 % chance to summon Gamon's Revenge on top of his killer,
+-- attacking them. That's about every 10 kills on average, with no counter
+-- to keep. It was 1 % at first: right for a busy server, but with a few
+-- players and a 5-minute respawn that's 8+ hours of killing Gamon.
 --
 -- This is the one change to a stock row: Gamon's AIName becomes
 -- 'SmartAI' (it was ''), so the death event can run. He still fights
 -- exactly as before. The uninstall puts '' back.
 --
--- To test without killing Gamon a hundred times, on a GM account:
+-- To test without killing Gamon ten times, on a GM account:
 --   .npc add temp 9100030
 -- spawns him in front of you, not saved to the DB. He has no killer to
 -- chase that way, so hit him first.
@@ -98,12 +99,12 @@ DELETE FROM `creature_text` WHERE `CreatureID` = @REVENGE;
 INSERT INTO `creature_text`
   (`CreatureID`, `GroupID`, `ID`, `Text`, `Type`, `Language`, `Probability`, `Emote`, `Duration`, `Sound`, `BroadcastTextId`, `TextRange`, `comment`)
 VALUES
-  (@REVENGE, 0, 0, 'ENOUGH! A HUNDRED TIMES YOU HAVE KILLED GAMON! NOW GAMON KILLS YOU!',     14, 0, 100, 0, 0, 0, 0, 4, 'Gamon''s Revenge - arrival, server-wide'),
+  (@REVENGE, 0, 0, 'ENOUGH! TEN TIMES YOU HAVE KILLED GAMON! NOW GAMON KILLS YOU!',           14, 0, 100, 0, 0, 0, 0, 4, 'Gamon''s Revenge - arrival, server-wide'),
   (@REVENGE, 1, 0, 'Did someone say Thunderfury?',                                         14, 0, 100, 0, 0, 0, 0, 2, 'Gamon''s Revenge - Thunderfury'),
   (@REVENGE, 2, 0, 'Who''s laughing now?',                                                 14, 0, 100, 0, 0, 0, 0, 2, 'Gamon''s Revenge - kill'),
   (@REVENGE, 2, 1, 'Gamon never forgets a face!',                                          14, 0, 100, 0, 0, 0, 0, 2, 'Gamon''s Revenge - kill'),
   (@REVENGE, 2, 2, 'That one was for the Ragefire tax!',                                   14, 0, 100, 0, 0, 0, 0, 2, 'Gamon''s Revenge - kill'),
-  (@REVENGE, 3, 0, 'Gamon... will... be back... in about... a hundred...',                 14, 0, 100, 0, 0, 0, 0, 2, 'Gamon''s Revenge - death');
+  (@REVENGE, 3, 0, 'Gamon... will... be back... in about... ten...',                        14, 0, 100, 0, 0, 0, 0, 2, 'Gamon''s Revenge - death');
 
 -- ---------------------------------------------------------------------
 -- SmartAI. Event types: 0 in-combat timer, 5 kill, 6 death,
@@ -123,11 +124,11 @@ INSERT INTO `smart_scripts`
    `target_type`, `target_param1`, `target_param2`, `target_param3`, `target_param4`,
    `target_x`, `target_y`, `target_z`, `target_o`, `comment`)
 VALUES
-  -- Gamon: 1 % on death. Summon type 1 = despawn after 30 min or on death
+  -- Gamon: 10 % on death. Summon type 1 = despawn after 30 min or on death
   -- (the corpse stays for looting first). Target 7 is the killer: Revenge
   -- appears on top of them, and attackInvoker 1 sets him on them.
   -- (attackInvoker 2 is rejected at this pin: 0 or 1 only.)
-  (@GAMON,   0, 0, 0,  6, 0,   1, 0,     0,     0,     0,     0, 0, 0, 12, @REVENGE, 1, 1800000, 1, 0, 0,  7,  0, 0, 0, 0,  0, 0, 0, 0, 'Gamon - death - 1% - Gamon''s Revenge on his killer'),
+  (@GAMON,   0, 0, 0,  6, 0,  10, 0,     0,     0,     0,     0, 0, 0, 12, @REVENGE, 1, 1800000, 1, 0, 0,  7,  0, 0, 0, 0,  0, 0, 0, 0, 'Gamon - death - 10% - Gamon''s Revenge on his killer'),
 
   (@REVENGE, 0, 0, 0, 54, 0, 100, 0,     0,     0,     0,     0, 0, 0,  1,     0,     0, 0, 0, 0, 0,  1,  0, 0, 0, 0,  0, 0, 0, 0, 'Gamon''s Revenge - arrival - server-wide yell'),
   (@REVENGE, 0, 2, 0,  0, 0, 100, 0,  5000,  8000,  8000, 12000, 0, 0, 11, 31779,     0, 0, 0, 0, 0,  2,  0, 0, 0, 0,  0, 0, 0, 0, 'Gamon''s Revenge - Cleave'),
