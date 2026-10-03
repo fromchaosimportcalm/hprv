@@ -22,7 +22,7 @@ Measured on the box 2026-09-26 unless marked otherwise.
 | 6 | Make Orgrimmar feel busier | plan | Ranked options below |
 | 7 | Level-80 holiday content | plan | **Brewfest is live now** |
 | 8 | Transmog NPC (Thunderfury!) | do | **Done and verified in game 2026-10-03** |
-| 9 | Redeem tier tokens for the bots | do | **Script ready and dry-run 2026-10-03.** Apply at the next stop |
+| 9 | Redeem tier tokens for the bots | do | **Done 2026-10-03.** Re-run after token drops. In game: `/ra equip upgrade`, `/ra maintenance` |
 | 10 | Fights feel a little easy | plan | Gruul 2026-10-03: quick kill. Feeds the HP-restore work in `tuning/` |
 
 ---
@@ -516,8 +516,9 @@ on 2026-10-03, incl. duplicates on Anmine and Krast.
       the bot's **roster spec**. Dry-run against live, rolled back: 15 tokens,
       **11 redeem**, 3 skipped because the bot already owns the piece (Ararin,
       Grohtarty, Vestanza), 1 spare (Anmine's second shoulder token)
-- [ ] **Apply it** at the next stop: log out, stop, dump `acore_characters`,
-      run, start (instructions in the file header)
+- [x] **Applied 2026-10-03 14:54** (backup `pre-tokens-20261003-145431.sql.gz`).
+      By then 18 tokens were saved (logout wrote more bags): **13 redeemed**,
+      4 already owned, 1 spare. Server back in 32 s
 - [ ] Then in game: `/ra equip upgrade` (bots equip if their stat weights
       agree), then `/ra maintenance` for the new pieces' sockets
 
