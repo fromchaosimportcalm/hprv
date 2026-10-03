@@ -22,7 +22,7 @@ Measured on the box 2026-09-26 unless marked otherwise.
 | 6 | Make Orgrimmar feel busier | plan | Ranked options below |
 | 7 | Level-80 holiday content | plan | **Brewfest is live now** |
 | 8 | Transmog NPC (Thunderfury!) | do | **Done and verified in game 2026-10-03** |
-| 9 | Redeem tier tokens for the bots | do | Script next. 15 tokens sitting in bags |
+| 9 | Redeem tier tokens for the bots | do | **Script ready and dry-run 2026-10-03.** Apply at the next stop |
 | 10 | Fights feel a little easy | plan | Gruul 2026-10-03: quick kill. Feeds the HP-restore work in `tuning/` |
 
 ---
@@ -511,11 +511,13 @@ mod-playerbots has no token code at all. Bots need-roll a T4 token
 (their class can use it) and keep it in their bags forever. 15 were found
 on 2026-10-03, incl. duplicates on Anmine and Krast.
 
-- [ ] `scripts/redeem-tier-tokens.sql`, server stopped: turn each token
+- [x] `scripts/redeem-tier-tokens.sql` written 2026-10-03: each token turns
       into its piece **in place** (same item instance, same bag slot) for
-      the bot's **roster spec** (Gerina's legs → Warbringer Battle-Gear,
-      not the prot Armor). Spec → T4 set table for the 25. Duplicates are
-      skipped and reported, never deleted. Dry-run against live first
+      the bot's **roster spec**. Dry-run against live, rolled back: 15 tokens,
+      **11 redeem**, 3 skipped because the bot already owns the piece (Ararin,
+      Grohtarty, Vestanza), 1 spare (Anmine's second shoulder token)
+- [ ] **Apply it** at the next stop: log out, stop, dump `acore_characters`,
+      run, start (instructions in the file header)
 - [ ] Then in game: `/ra equip upgrade` (bots equip if their stat weights
       agree), then `/ra maintenance` for the new pieces' sockets
 
