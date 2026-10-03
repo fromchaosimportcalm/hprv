@@ -13,6 +13,17 @@ On HPRV, all of them are applied **except `stormwind-spawns.sql`**. That
 file is the package's Alliance spawn set: the whole pool is Horde, so HPRV
 has no use for it.
 
+> **Moved into the Bank of Orgrimmar, 2026-10-03.** `orgrimmar-bank.sql`
+> (HPRV only, not packaged) removes the three bankers, their phased copies
+> and both Guild Vaults, and stands all six NPCs on the bankers' line, Soran's
+> end to Koma's, 3.8 yd apart: T4, T5, T6, weapons, transmog, Porter. The
+> floor is flat (z 12.05), so no per-NPC height. **Re-running
+> `tier-vendors.sql`, `weapon-vendor.sql` or `teleporter-npc.sql` puts that
+> NPC back outside; re-run `orgrimmar-bank.sql` after.**
+> `orgrimmar-bank-revert.sql` restores the stock rows exactly. The
+> Valley-of-Strength positions described below are what the package
+> installs on other servers.
+
 ## The package
 
 `scripts/package-npcs.sh` builds `dist/hprv-npcs-<date>.tar.gz` for
@@ -32,6 +43,7 @@ column.
 | 9100002 | **Veshan Coilhand** | Tier 5 set pieces, free (85) | `tier-vendors.sql` |
 | 9100003 | **Oriel Duskmantle** | Tier 6 set pieces incl. Sunwell wrist/waist/feet, free (136) | `tier-vendors.sql` |
 | 9100004 | **Torvek Ashforge** | T4/T5/T6 raid-drop weapons, shields, off-hands, relics, free (95) | `weapon-vendor.sql`, free via `weapon-vendor-free-prices.sql` |
+| 190010 (spawn 9100005) | **Warpweaver** | mod-transmog's transmogrifier, south end of the vendor row. Free, legendaries allowed (for Thunderfury). The NPC is the module's own entry, only the spawn is ours. Needs the C++ module, so not packaged | `transmog-npc.sql`, config in `scripts/phase-e-config.sh` (`step_transmog`) |
 | 9100020 | **Highlord Kruul** | 25-man world boss test, Shadowmoon Valley. Spawned only by `game_event` 240 (`.event start 240`, 90 min). Not packaged by `package-npcs.sh` | `world-boss-kruul.sql`, `world-boss-kruul-uninstall.sql` |
 | 9100021 | **Hound of Kruul** | Kruul's summoned add | `world-boss-kruul.sql` |
 | 9100030 | **Gamon, He Remembers** | Gamon's Revenge: 10 % of Gamon's (6466) deaths summon him, level 73 with Thunderfury and a Warglaive, hostile to all of Orgrimmar. Gamon himself gets `AIName = 'SmartAI'` and one death row, the only stock change. Test: `.npc add temp 9100030` | `gamons-revenge.sql`, `gamons-revenge-uninstall.sql` |
@@ -40,7 +52,7 @@ column.
 
 **9100000–9100099 is ours**, in every table: `creature_template`,
 `creature` (spawn guid = entry), `gossip_menu`, `npc_text`,
-`smart_scripts`, `npc_vendor`. Spawn guids: 9100000–04 in Orgrimmar
+`smart_scripts`, `npc_vendor`. Spawn guids: 9100000–05 in Orgrimmar (05 is the transmogrifier, whose entry is the module's 190010)
 and 9100010–14 in Stormwind (entry + 10); 9100020 is Kruul in Shadowmoon.
 **`game_event` IDs 240–249 are ours too.** `eventEntry` is a `tinyint`, so
 they can't share the 9100000 range; the highest stock event was 190 on

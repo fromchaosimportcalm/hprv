@@ -127,12 +127,14 @@ load_pins() {
   [[ -f "$HPRV_PINS" ]] || die "Pins file not found: $HPRV_PINS"
   # shellcheck disable=SC1090
   source "$HPRV_PINS"
-  for v in AC_REPO AC_BRANCH AC_COMMIT MOD_REPO MOD_BRANCH MOD_COMMIT; do
+  for v in AC_REPO AC_BRANCH AC_COMMIT MOD_REPO MOD_BRANCH MOD_COMMIT \
+           TRANSMOG_REPO TRANSMOG_BRANCH TRANSMOG_COMMIT; do
     [[ -n "${!v:-}" ]] || die "$v is unset in $HPRV_PINS"
   done
   log "Pins loaded from $HPRV_PINS"
   log "  core   ${AC_COMMIT:0:12}  (${AC_REPO##*/}@${AC_BRANCH})"
   log "  module ${MOD_COMMIT:0:12}  (${MOD_REPO##*/}@${MOD_BRANCH})"
+  log "  transmog ${TRANSMOG_COMMIT:0:12}  (${TRANSMOG_REPO##*/}@${TRANSMOG_BRANCH})"
 }
 
 # ---- Clone / pin ------------------------------------------------------
@@ -275,6 +277,8 @@ main() {
   mkdir -p "$HPRV_SRC_ROOT/modules"
   sync_repo "$HPRV_SRC_ROOT/modules/mod-playerbots" \
     "$MOD_REPO" "$MOD_BRANCH" "$MOD_COMMIT" "module"
+  sync_repo "$HPRV_SRC_ROOT/modules/mod-transmog" \
+    "$TRANSMOG_REPO" "$TRANSMOG_BRANCH" "$TRANSMOG_COMMIT" "transmog"
 
   verify_tree
   step_summary

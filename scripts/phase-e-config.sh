@@ -191,6 +191,21 @@ step_playerbots() {
   warn "decisions, logged as ADRs, not something this script should pick."
 }
 
+# mod-transmog (TODO item 8). Single player, so free and permissive, but
+# keep the stock-client rules: same weapon type, same armour type.
+# AllowLegendary is the one that matters — its default is 0, and the
+# whole point is Thunderfury (19019, quality 5) on Bullwark.
+step_transmog() {
+  local conf="$MOD_CONF_DIR/transmog.conf"
+  [[ -f "$MOD_CONF_DIR/transmog.conf.dist" ]] || { warn "mod-transmog not installed — skipping."; return; }
+  ensure_conf "$conf" "$MOD_CONF_DIR/transmog.conf.dist"
+  set_conf_key "$conf" "Transmogrification.AllowLegendary"     "1"
+  set_conf_key "$conf" "Transmogrification.CopperCost"         "0"
+  set_conf_key "$conf" "Transmogrification.ScaledCostModifier" "0.0"
+  set_conf_key "$conf" "Transmogrification.SetCostModifier"    "0.0"
+  set_conf_key "$conf" "Transmogrification.RequireToken"       "0"
+}
+
 step_realmlist() {
   local out
   out="$(mysql -h "$ACORE_DB_HOST" -P "$ACORE_DB_PORT" \
@@ -254,6 +269,7 @@ main() {
   step_authserver
   step_worldserver
   step_playerbots
+  step_transmog
   step_realmlist
   step_summary
 }

@@ -23,5 +23,8 @@ DELETE FROM `gossip_menu`             WHERE `MenuID`      BETWEEN 9100000 AND 91
 DELETE FROM `npc_text`                WHERE `ID`          BETWEEN 9100000 AND 9100099;
 DELETE FROM `creature_template_model` WHERE `CreatureID`  BETWEEN 9100000 AND 9100099;
 DELETE FROM `creature_template`       WHERE `entry`       BETWEEN 9100000 AND 9100099;
+DELETE FROM `gameobject`              WHERE `guid`        BETWEEN 9100000 AND 9100099;
+DELETE FROM `gameobject`              WHERE `id`          BETWEEN 9100000 AND 9100099;
+DELETE FROM `gameobject_template`     WHERE `entry`       BETWEEN 9100000 AND 9100099;
 
 SELECT 'removed; restart the worldserver' AS result;

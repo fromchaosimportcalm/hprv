@@ -21,7 +21,9 @@ Measured on the box 2026-09-26 unless marked otherwise.
 | 5 | Professions for the ten | plan | **Bullwark done 2026-09-26.** The other nine are still a plan |
 | 6 | Make Orgrimmar feel busier | plan | Ranked options below |
 | 7 | Level-80 holiday content | plan | **Brewfest is live now** |
-| 8 | Transmog NPC (Thunderfury!) | do | Needs a rebuild. Bundle it with the planned one |
+| 8 | Transmog NPC (Thunderfury!) | do | **Done and verified in game 2026-10-03** |
+| 9 | Redeem tier tokens for the bots | do | Script next. 15 tokens sitting in bags |
+| 10 | Fights feel a little easy | plan | Gruul 2026-10-03: quick kill. Feeds the HP-restore work in `tuning/` |
 
 ---
 
@@ -459,28 +461,68 @@ no action for it, so it needs a C++ module.
 the standard AzerothCore module. It's a gossip NPC and works with the
 **stock 3.3.5a client**, so the stock-client guardrail holds.
 
-- [ ] **Bundle it into the planned rebuild.** `CLAUDE.md` open questions
-      already plan one CMake re-run and relink window for `Release` +
-      `mod-multibot-bridge`. Add transmog to the same one, so you pay for
-      one ~7.4 GB link, not two
-- [ ] **Check it builds against the pinned playerbots fork first.** It's
-      often used alongside playerbots, but the core is pinned
-      (`scripts/pins.conf`). Clone the module at a compatible commit,
-      then pin it in `pins.conf` like the others
-- [ ] Apply the module's SQL (its NPC and tables). Keep its NPC's entry and
-      spawn inside the 9100000–9100099 custom range if the module allows it, and
-      stand it with the Porter and the vendors in the Valley of Strength
-- [ ] **Config for a single-player server:** make transmog free, and
-      allow any appearance rather than only collected ones.
-      **Legendary appearances must be allowed**, because Thunderfury is
-      quality 5. Check the module's legendary setting explicitly
-- [ ] **The Thunderfury check, done 2026-09-26:** Thunderfury (19019) and
+- [x] ~~Bundle it into the planned rebuild~~ **Decided 2026-10-03: its own
+      relink.** Adding one module is a module recompile (server up) plus one
+      short stop for the link. `Release` + `mod-multibot-bridge` stay a
+      separate job
+- [x] **Pinned** at `0d85cbc` (2026-07-27, the newest before the core pin)
+      in `pins.conf`, and cloned by `phase-b-source.sh`. The core has the
+      `module_string` tables, `GetModuleString` and every hook it uses
+- [ ] Module SQL applies itself at startup (`AllowedModules`). The NPC keeps
+      the module's entry 190010; only the spawn is ours, 9100005, at the south
+      end of the vendor row: `custom/transmog-npc.sql`
+- [x] **Config:** `phase-e-config.sh` `step_transmog`: free, and
+      `AllowLegendary = 1` (default 0). The collection system stays on:
+      Thunderfury is in Bullwark's bags, so `RetroActiveAppearances` collects
+      it at login (`.transmog claim` if not)
+- [x] **The Thunderfury check, done 2026-09-26:** Thunderfury (19019) and
       Bullwark's main hand King's Defender (28749) are both class 2,
       subclass 7 (sword), inventory type 13 (one-hand). So it's valid
       even under the strictest same-type rules. Only the quality differs
-- [ ] After the rebuild, prove it end to end: transmog King's Defender to
-      Thunderfury, relog, and check the look persists. Then record it in
-      `docs/custom-npcs.md`
+- [x] Built, linked and live 2026-10-03 (module compile with the server
+      up, then one ~6 min stop). Module SQL applied itself at startup
+- [x] **Proved end to end in game 2026-10-03:** King's Defender wears
+      Thunderfury, and it survives a relog. Recorded in `docs/custom-npcs.md`
 - [ ] Don't delete Thunderfury from his bags. The module may need the
       source item kept, depending on its config
+
+---
+
+## Done alongside item 8 (2026-10-03, same stop)
+
+- **Guild "HPRV":** the 25 in one guild, Bullwark GM (`scripts/guild-hprv.sql`).
+  Gear passes keep it: `InitGuild()` only assigns a bot with no guild
+- **Bank of Orgrimmar → custom-NPC hall:** bankers and guild vaults removed,
+  all six NPCs on the bankers' line, sign swapped to "Hall of Champions"
+  (`custom/orgrimmar-bank.sql`, revert beside it). HPRV only for now; it
+  becomes an optional add-on when the NPC package goes to another server
+- **Gerina back to arms** (`init=183`, verified). She'd been made prot on
+  2026-09-28 on purpose, to off-tank. The offtanks are covered without her
+- **Empty sockets** on Krast, Izri, Restofarian, Ilyna and Ararin are loot
+  equipped after the gear pass; drops arrive ungemmed. `/ra maintenance`
+  gems and enchants what bots wear, without re-gearing or wiping `co`.
+  Not with Bullwark in the raid as a bot: it would overwrite his hand-picked gems
+
+---
+
+## 9. Redeem tier tokens
+
+mod-playerbots has no token code at all. Bots need-roll a T4 token
+(their class can use it) and keep it in their bags forever. 15 were found
+on 2026-10-03, incl. duplicates on Anmine and Krast.
+
+- [ ] `scripts/redeem-tier-tokens.sql`, server stopped: turn each token
+      into its piece **in place** (same item instance, same bag slot) for
+      the bot's **roster spec** (Gerina's legs → Warbringer Battle-Gear,
+      not the prot Armor). Spec → T4 set table for the 25. Duplicates are
+      skipped and reported, never deleted. Dry-run against live first
+- [ ] Then in game: `/ra equip upgrade` (bots equip if their stat weights
+      agree), then `/ra maintenance` for the new pieces' sockets
+
+## 10. Difficulty
+
+Gruul on 2026-10-03 went down quickly at Tier 4 entry gear, with a few
+deaths, and the fights feel "a little easy". That's the 3.0.2 30% HP nerf
+still in place. It argues for starting the HP restore (CLAUDE.md
+"BC-feel tuning"), in Karazhan first as planned (ADR 0005)
 

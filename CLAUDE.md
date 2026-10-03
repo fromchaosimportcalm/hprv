@@ -22,12 +22,13 @@ a fact is unverified it says so.
 | Host | `hprv-lxc`, `192.168.4.124`, Proxmox on ClintonOps |
 | Resources | 4 vCPU, 12 GB RAM, Tank-backed bulk storage |
 | Core | `mod-playerbots/azerothcore-wotlk`, Playerbot branch, pinned |
-| Module | `mod-playerbots/mod-playerbots`, pinned to the same merge |
+| Module | `mod-playerbots/mod-playerbots`, pinned to the same merge. Also `mod-transmog` (pinned separately) and HPRV's own `mod-hprv-city` |
 | Standing raid | 10 on your own account, **auto-login**: Bullwark + 9 bots, one of each class (ADR `0007`) |
 | Wider pool | 31 more on type-2 accounts, summoned by name for 25-man |
 | Ambient | 20 random bots, levels 1–70, Eastern Kingdoms / Kalimdor / Outland only (no Northrend, 2026-09-26) |
 | Gear tier | **Tier 4, reset 2026-09-25** — everything above ilvl 125 stripped from the 25, `AutoGearScoreLimit = 125` (ADR `0006`) |
-| Custom NPCs | Teleporter + free T4/T5/T6 and weapon vendors, Orgrimmar — `docs/custom-npcs.md` |
+| Custom NPCs | Teleporter, free T4/T5/T6 and weapon vendors, and a transmogrifier, in the Bank of Orgrimmar (bankers removed) — `docs/custom-npcs.md` |
+| Guild | **HPRV**: the 25, Bullwark GM (`scripts/guild-hprv.sql`) |
 | Furthest kill | Black Temple: Naj'entus, Supremus (2026-08-13) |
 | Furthest attempt | Illidari Council to 24%, lost to the 15-min berserk (2026-08-15) |
 
