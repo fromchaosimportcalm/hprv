@@ -185,18 +185,35 @@ and keep her 10 yd from Enchanted Elementals in phase 3.
    persists (`docs/raid-layout.md`), so swap back after, or rerun
    `scripts/raid-layout.sql` at the next stop.
 
+### Two macros, so nothing is typed mid-fight
+
+Make these before the pull (Esc → Macros → New) and put them on your
+bars. A macro sends each line as its own whisper.
+
+**ARA TANK** (at 70%):
+```
+/w Ararin co +tank,+tank assist,-dps,-dps assist
+```
+
+**ARA DPS** (at the pull if needed, and when the shield drops):
+```
+/w Ararin co -tank,-tank assist,+dps,+dps assist
+/w Ararin nc -tank assist,+dps assist
+```
+
+The real fix, if macros still feel like too much, is to do the switch in
+`mod-hprv-city`. The module would watch Vashj's phase and change
+Ararin's strategies in memory (`PlayerbotAI::ChangeStrategy`, like the
+city wander). Then nothing is whispered and nothing is saved to
+`playerbots_db_store`. That needs a module build and a short stop.
+
 ### The fight
 
 - **Phase 1:** pull and drag her to the middle of the platform. If you
   get Static Charge, step out of the group.
-- **At 70%, when the shield goes up:** make Ararin a tank:
-  ```
-  /w Ararin co +tank,+tank assist,-dps,-dps assist
-  ```
-  He takes the Striders. You pick up the Coilfang Elites. Leave the
+- **At 70%, when the shield goes up:** press **ARA TANK**. He takes the Striders. You pick up the Coilfang Elites. Leave the
   cores to the bots.
-- **When the shield drops (phase 3):** convert Ararin back straight away
-  (both whispers in Setup), and take Vashj back. Keep her away from the
+- **When the shield drops (phase 3):** press **ARA DPS** straight away, and take Vashj back. Keep her away from the
   Enchanted Elementals.
 - **After:** every whisper rewrote Ararin's saved row (rule 2). Check
   with a bare `co` that he ended up converted.
