@@ -555,8 +555,8 @@ is left alone. Re-running re-rolls everyone.
 
 - [x] Dry-run twice against live with ROLLBACK: every guard passed and the
       rolls spread as intended
-- [x] Applied 2026-10-08 (backup `pre-titles-20261007-133329.sql.gz`, box
-      clock is a day behind). All checks passed; world back in 53 s. Rolled:
+- [x] Applied 2026-10-08 (backup `pre-titles-20261007-133329.sql.gz`;
+      the box runs on UTC). All checks passed; world back in 53 s. Rolled:
       Warlord Crumm, Scarab Lord Dehme, Vengeful Gladiator Izri, Champion
       Tengwe, three Hands of A'dal, three Champions of the Naaru, the rest
       honor ranks, arena and Shattered Sun
