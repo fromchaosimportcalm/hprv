@@ -233,7 +233,19 @@ AiPlayerbot.RandomBotMaps       = 0,1,530  # no Northrend — keeps ambients in 
 AiPlayerbot.LootNeedRollLevel   = 2        # upgrades roll NEED (dist: 1, downgrades need to greed)
 AiPlayerbot.LootGreedRollLevel  = 1        # everything else rolls GREED (dist: 0, i.e. pass)
 AiPlayerbot.EnableFishingWithMaster = 0    # dist: 1. See "Fishing" below
+AiPlayerbot.BroadcastChanceLootingItemEpic = 0  # dist: 30000 (always). See "Loot chatter" below
 ```
+
+**Loot chatter (2026-10-08).** A bot announces an item ("wow, I just got
+…") as soon as it *asks* to loot it (`LootAction.cpp:454`, right after it
+queues `CMSG_AUTOSTORE_LOOT_ITEM`), not when the item arrives. Items won
+on a roll never go through that path, so in a raid it only fires when an
+item is free to take: when everyone passes, every bot that has the corpse
+open grabs it, and every one of them announces it. Only one gets it.
+Found when four bots each claimed an epic recipe nobody had rolled on.
+With the epic chance at 0, epics are never announced. Blues (`Rare`,
+20000) have the same race but rarely show it. Fixing it properly means
+moving the broadcast to the item-received event, which is a module patch.
 
 **Fishing (2026-10-08).** With the `.dist` value, the moment you cast
 Fishing every group bot with any Fishing skill gets `master fishing`
