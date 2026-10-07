@@ -129,9 +129,13 @@ check that both rows are clean:
 
 ## Lady Vashj
 
-**Untested: written from the script on 2026-10-08, before the first
-pull.** Correct this after the first attempt. The phase 2 hand-off is the
-part most likely to need changing.
+**First attempt, 2026-10-08: stuck in phase 2.** The cores never reached
+the generators. Under Group Loot, the white Tainted Core is round-robin:
+only the player whose turn it is can loot it. Gerina, the core-looter bot,
+failed whenever it wasn't her turn, and nobody else loots during Vashj.
+`mod-hprv-city` now switches the group to Free-for-All while the shield is
+up, and back afterwards (module README). The rest of this section is still
+from the script, not from a kill.
 
 **You tank her. Ararin tanks only in phase 2, for the Striders.** Making
 Ararin main tank looks easier but is worse, for two reasons:
@@ -180,7 +184,12 @@ and keep her 10 yd from Enchanted Elementals in phase 3.
    persists (`docs/raid-layout.md`), so swap back after, or rerun
    `scripts/raid-layout.sql` at the next stop.
 
-### Ararin's switch is automatic (mod-hprv-city, 2026-10-08)
+### Ararin's switch and the loot method are automatic (mod-hprv-city, 2026-10-08)
+
+**If you run Vashj without the module:** set the loot method to
+Free-for-All yourself before 70%, and back to Group Loot once the shield
+drops, before she dies.
+
 
 `HprvVashjPlayerScript` holds Ararin as DPS in phases 1 and 3 and makes
 him a tank in phase 2, in memory, then puts him back exactly as he was

@@ -140,3 +140,16 @@ your logout). The server log gets one line per switch:
 In memory only, like the city wander: nothing is written to
 `playerbots_db_store`. **The same trap applies:** a `co`/`nc` whisper to
 Ararin mid-fight saves whatever he's holding at that moment.
+
+**It also switches the loot method for the cores.** The Tainted Core is a
+white item. Under Group Loot (threshold uncommon), a white item is
+round-robin: only the player whose turn it is can loot it
+(`LootMgr.cpp:1040`). Normal bot looting is off during Vashj, and the raid
+leader is never in the core chain, so when it wasn't the core-looter bot's
+turn, the core stayed on the corpse and the shield never dropped. That's
+what stalled the first attempt on 2026-10-08: Gerina teleported and tried
+to loot every core, and the passers stood waiting all phase. So while the
+shield is up, the group is **Free-for-All**. It goes back to its own
+method the moment the shield drops (or on a wipe, or your logout), before
+Vashj's own loot exists. Log lines: `loot set to Free-for-All for the
+cores` and `loot method restored`.

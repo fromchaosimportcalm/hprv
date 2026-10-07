@@ -966,6 +966,7 @@ struct VashjSwitch
 
 std::unordered_map<ObjectGuid, VashjSwitch> vashjSwitched;  // by bot guid
 std::unordered_map<ObjectGuid, uint32> vashjSinceTick;      // by master guid
+std::unordered_map<ObjectGuid, LootMethod> vashjSavedLoot;  // by master guid
 
 // Bring each slot to `want`, touching only what differs.
 void SetStrategies(PlayerbotAI* botAI, std::vector<std::pair<StrategySlot const*, bool>> const& want)
@@ -1018,16 +1019,53 @@ Player* FindStriderTank(Player* master)
     return nullptr;
 }
 
+// Phase 2's Tainted Core is a white item. Under Group Loot (threshold
+// uncommon) a white item is round-robin: only the player whose turn it is
+// can loot it (LootMgr.cpp:1040). The core looter bot fails whenever it
+// isn't its turn, normal bot looting is off during Vashj, and the leader is
+// never in the core chain, so the core stays on the corpse and the shield
+// never drops. Found 2026-10-08. So the group is Free-for-All while the
+// shield is up, and goes back to its own method as soon as it drops, before
+// Vashj's own loot exists.
+void VashjLoot(Player* master, bool phase2)
+{
+    Group* group = master->GetGroup();
+    auto it = vashjSavedLoot.find(master->GetGUID());
+
+    if (phase2 && group && it == vashjSavedLoot.end() && group->GetLootMethod() != FREE_FOR_ALL)
+    {
+        vashjSavedLoot.emplace(master->GetGUID(), group->GetLootMethod());
+        group->SetLootMethod(FREE_FOR_ALL);
+        group->SendUpdate();
+        LOG_INFO("module", "mod-hprv-city: Vashj phase 2, loot set to Free-for-All for the cores");
+    }
+    else if (!phase2 && it != vashjSavedLoot.end())
+    {
+        if (group)
+        {
+            group->SetLootMethod(it->second);
+            group->SendUpdate();
+            LOG_INFO("module", "mod-hprv-city: Vashj shield down, loot method restored");
+        }
+        vashjSavedLoot.erase(it);
+    }
+}
+
 void VashjTick(Player* master)
 {
-    Player* bot = FindStriderTank(master);
+    Creature* vashj = nullptr;
+    if (master->GetMapId() == VASHJ_MAP_ID)
+        vashj = master->FindNearestCreature(VASHJ_ENTRY, VASHJ_SEARCH);
+    bool const engaged = vashj && vashj->IsInCombat();
+    bool const phase2 =
+        engaged && vashj->GetHealthPct() <= VASHJ_PHASE2_PCT && vashj->HasAura(VASHJ_MAGIC_BARRIER);
+
+    VashjLoot(master, phase2);
+
+    Player* bot = engaged ? FindStriderTank(master) : nullptr;
     RoleStrategies const* roles = bot ? RolesFor(bot->getClass()) : nullptr;
 
-    Creature* vashj = nullptr;
-    if (roles && master->GetMapId() == VASHJ_MAP_ID)
-        vashj = master->FindNearestCreature(VASHJ_ENTRY, VASHJ_SEARCH);
-
-    if (!vashj || !vashj->IsInCombat())
+    if (!roles)
     {
         // Fight over, or never started: hand back anything we switched.
         for (auto it = vashjSwitched.begin(); it != vashjSwitched.end();)
@@ -1056,7 +1094,6 @@ void VashjTick(Player* master)
     }
 
     VashjSwitch& sw = it->second;
-    bool const phase2 = vashj->GetHealthPct() <= VASHJ_PHASE2_PCT && vashj->HasAura(VASHJ_MAGIC_BARRIER);
 
     // slots: 0 tank, 1 tank assist, 2 dps, 3 dps assist (combat); 4 tank assist, 5 dps assist (non-combat).
     // The non-combat "tank assist" also makes IsTank() true, so it goes too.
@@ -1097,6 +1134,8 @@ public:
     {
         if (vashjSinceTick.erase(player->GetGUID()) == 0)
             return;  // not a master
+
+        VashjLoot(player, false);
 
         for (auto const& [guid, sw] : vashjSwitched)
             if (Player* bot = ObjectAccessor::FindConnectedPlayer(guid))
