@@ -113,3 +113,30 @@ check goes through, and refuses armour below the bot's own type from level
 40: plate for warriors, paladins and DKs, mail for hunters and shamans,
 leather for rogues and druids. The bot passes or greeds instead, and never
 equips it. Real players, cloaks, shields, relics and jewellery are untouched.
+
+## Also here: Ararin tanks Vashj's Striders, and only in phase 2
+
+Also not a city feature, and in this file for the same reason as the armour
+check (no CMake re-run). The module's Lady Vashj script gives Coilfang
+Striders to assist tank 0, which has to be a bot that `IsTank()`. But nothing
+in that script turns off taunts, so a tank bot in phases 1 and 3 takes Vashj
+off you (CLAUDE.md rule 1).
+
+`HprvVashjPlayerScript` checks once a second while you're in Serpentshrine and
+Vashj is in combat within 200 yd of you. It switches `VASHJ_STRIDER_TANK`
+(`Ararin`):
+
+| When | Combat engine | Non-combat engine |
+|---|---|---|
+| Phase 1 and 3 | `-tank,-tank assist,+dps,+dps assist` | `-tank assist,+dps assist` |
+| Phase 2 (≤70%, Magic Barrier up) | `+tank,+tank assist,-dps,-dps assist` | same |
+
+The strategy names follow rule 1's per-class table, so a warrior, DK or
+druid can be named instead. Each of the six strategies is recorded at the
+pull, and put back exactly when the fight ends (kill, wipe, leaving, or
+your logout). The server log gets one line per switch:
+`mod-hprv-city: Vashj phase 2, Ararin tanks the Striders`.
+
+In memory only, like the city wander: nothing is written to
+`playerbots_db_store`. **The same trap applies:** a `co`/`nc` whisper to
+Ararin mid-fight saves whatever he's holding at that moment.

@@ -24,6 +24,7 @@
  */
 
 #include "Bag.h"
+#include "Creature.h"
 #include "DBCStores.h"
 #include "GameTime.h"
 #include "Group.h"
@@ -899,8 +900,214 @@ public:
     }
 };
 
+// ---------------------------------------------------------------------
+// Lady Vashj: one plate bot tanks the Striders in phase 2, and only then.
+//
+// The module's Vashj script gives Coilfang Striders to assist tank 0 and,
+// with the raid cheat, puts Fear Ward on it. That needs a bot that
+// IsTank(). But nothing in the Vashj script turns off taunts, so a tank bot
+// in phases 1 and 3 rips Vashj off the human (CLAUDE.md rule 1).
+//
+// So while Vashj is in combat, VASHJ_STRIDER_TANK is held as DPS in phases
+// 1 and 3 and switched to tank in phase 2 (Magic Barrier up). When the fight
+// ends (kill, wipe, leaving, logout), each strategy goes back to what it was
+// before the pull. All in memory (PlayerbotAI::ChangeStrategy, not the
+// whisper path), so nothing is written to playerbots_db_store, and no
+// whispers are needed mid-fight. docs/encounters/serpentshrine.md.
+// ---------------------------------------------------------------------
+namespace
+{
+// Prot paladin, crit-capped (docs/tank-defence.md). Must be in your group.
+char const* const VASHJ_STRIDER_TANK = "Ararin";
+
+uint32 const VASHJ_MAP_ID = 548;              // Serpentshrine Cavern
+uint32 const VASHJ_ENTRY = 21212;             // NPC_LADY_VASHJ in SSCHelpers.h
+uint32 const VASHJ_MAGIC_BARRIER = 38112;     // SPELL_MAGIC_BARRIER: phase 2
+float const VASHJ_PHASE2_PCT = 70.0f;         // IsLadyVashjInPhase2()
+float const VASHJ_SEARCH = 200.0f;            // from you; the platform is ~60 yd across
+uint32 const VASHJ_TICK_MS = 1000;
+
+// The class tank and DPS strategies, from CLAUDE.md rule 1's table.
+struct RoleStrategies
+{
+    char const* tank;
+    char const* dps;
+};
+
+RoleStrategies const* RolesFor(uint8 cls)
+{
+    static RoleStrategies const paladin{"tank", "dps"};
+    static RoleStrategies const warrior{"tank", "arms"};
+    static RoleStrategies const deathKnight{"blood", "frost"};
+    static RoleStrategies const druid{"bear", "cat"};
+    switch (cls)
+    {
+        case CLASS_PALADIN:      return &paladin;
+        case CLASS_WARRIOR:      return &warrior;
+        case CLASS_DEATH_KNIGHT: return &deathKnight;
+        case CLASS_DRUID:        return &druid;
+        default:                 return nullptr;
+    }
+}
+
+// One strategy in one engine, and whether it was there before the pull.
+struct StrategySlot
+{
+    std::string name;
+    ::BotState state;
+    bool before;
+};
+
+struct VashjSwitch
+{
+    std::vector<StrategySlot> slots;
+    bool tanking = false;
+};
+
+std::unordered_map<ObjectGuid, VashjSwitch> vashjSwitched;  // by bot guid
+std::unordered_map<ObjectGuid, uint32> vashjSinceTick;      // by master guid
+
+// Bring each slot to `want`, touching only what differs.
+void SetStrategies(PlayerbotAI* botAI, std::vector<std::pair<StrategySlot const*, bool>> const& want)
+{
+    for (::BotState state : {BOT_STATE_COMBAT, BOT_STATE_NON_COMBAT})
+    {
+        std::string change;
+        for (auto const& [slot, on] : want)
+        {
+            if (slot->state != state || botAI->HasStrategy(slot->name, state) == on)
+                continue;
+            if (!change.empty())
+                change += ',';
+            change += (on ? '+' : '-') + slot->name;
+        }
+        if (!change.empty())
+            botAI->ChangeStrategy(change, state);
+    }
+}
+
+void VashjRestore(Player* bot, VashjSwitch const& sw)
+{
+    PlayerbotAI* botAI = GET_PLAYERBOT_AI(bot);
+    if (!botAI)
+        return;
+
+    std::vector<std::pair<StrategySlot const*, bool>> want;
+    for (StrategySlot const& slot : sw.slots)
+        want.emplace_back(&slot, slot.before);
+    SetStrategies(botAI, want);
+    LOG_INFO("module", "mod-hprv-city: Vashj over, {} back to his own strategies", bot->GetName());
+}
+
+Player* FindStriderTank(Player* master)
+{
+    Group* group = master->GetGroup();
+    if (!group)
+        return nullptr;
+
+    for (GroupReference* ref = group->GetFirstMember(); ref; ref = ref->next())
+    {
+        Player* member = ref->GetSource();
+        if (!member || member->GetName() != VASHJ_STRIDER_TANK)
+            continue;
+
+        PlayerbotAI* botAI = GET_PLAYERBOT_AI(member);
+        if (botAI && !botAI->IsRealPlayer() && botAI->GetMaster() == master)
+            return member;
+    }
+    return nullptr;
+}
+
+void VashjTick(Player* master)
+{
+    Player* bot = FindStriderTank(master);
+    RoleStrategies const* roles = bot ? RolesFor(bot->getClass()) : nullptr;
+
+    Creature* vashj = nullptr;
+    if (roles && master->GetMapId() == VASHJ_MAP_ID)
+        vashj = master->FindNearestCreature(VASHJ_ENTRY, VASHJ_SEARCH);
+
+    if (!vashj || !vashj->IsInCombat())
+    {
+        // Fight over, or never started: hand back anything we switched.
+        for (auto it = vashjSwitched.begin(); it != vashjSwitched.end();)
+        {
+            if (Player* switched = ObjectAccessor::FindConnectedPlayer(it->first))
+                VashjRestore(switched, it->second);
+            it = vashjSwitched.erase(it);
+        }
+        return;
+    }
+
+    PlayerbotAI* botAI = GET_PLAYERBOT_AI(bot);
+    auto it = vashjSwitched.find(bot->GetGUID());
+    if (it == vashjSwitched.end())
+    {
+        VashjSwitch sw;
+        auto remember = [&](std::string const& name, ::BotState state)
+        { sw.slots.push_back({name, state, botAI->HasStrategy(name, state)}); };
+        remember(roles->tank, BOT_STATE_COMBAT);
+        remember("tank assist", BOT_STATE_COMBAT);
+        remember(roles->dps, BOT_STATE_COMBAT);
+        remember("dps assist", BOT_STATE_COMBAT);
+        remember("tank assist", BOT_STATE_NON_COMBAT);
+        remember("dps assist", BOT_STATE_NON_COMBAT);
+        it = vashjSwitched.emplace(bot->GetGUID(), std::move(sw)).first;
+    }
+
+    VashjSwitch& sw = it->second;
+    bool const phase2 = vashj->GetHealthPct() <= VASHJ_PHASE2_PCT && vashj->HasAura(VASHJ_MAGIC_BARRIER);
+
+    // slots: 0 tank, 1 tank assist, 2 dps, 3 dps assist (combat); 4 tank assist, 5 dps assist (non-combat).
+    // The non-combat "tank assist" also makes IsTank() true, so it goes too.
+    SetStrategies(botAI, {{&sw.slots[0], phase2}, {&sw.slots[1], phase2},
+                          {&sw.slots[2], !phase2}, {&sw.slots[3], !phase2},
+                          {&sw.slots[4], false}, {&sw.slots[5], true}});
+
+    if (sw.tanking != phase2)
+    {
+        sw.tanking = phase2;
+        LOG_INFO("module", "mod-hprv-city: Vashj {}, {} {}", phase2 ? "phase 2" : "not phase 2",
+                 bot->GetName(), phase2 ? "tanks the Striders" : "held as DPS");
+    }
+}
+}  // namespace
+
+class HprvVashjPlayerScript : public PlayerScript
+{
+public:
+    HprvVashjPlayerScript() : PlayerScript("HprvVashjPlayerScript", {PLAYERHOOK_ON_UPDATE, PLAYERHOOK_ON_LOGOUT}) {}
+
+    void OnPlayerUpdate(Player* player, uint32 diff) override
+    {
+        PlayerbotAI* ai = GET_PLAYERBOT_AI(player);
+        if (ai && !ai->IsRealPlayer())
+            return;  // bots don't run this for themselves
+
+        uint32& since = vashjSinceTick[player->GetGUID()];
+        since += diff;
+        if (since < VASHJ_TICK_MS)
+            return;
+        since = 0;
+
+        VashjTick(player);
+    }
+
+    void OnPlayerLogout(Player* player) override
+    {
+        if (vashjSinceTick.erase(player->GetGUID()) == 0)
+            return;  // not a master
+
+        for (auto const& [guid, sw] : vashjSwitched)
+            if (Player* bot = ObjectAccessor::FindConnectedPlayer(guid))
+                VashjRestore(bot, sw);
+        vashjSwitched.clear();
+    }
+};
+
 void AddHprvCityWanderScripts()
 {
     new HprvCityWanderPlayerScript();
     new HprvArmorTypePlayerScript();
+    new HprvVashjPlayerScript();
 }

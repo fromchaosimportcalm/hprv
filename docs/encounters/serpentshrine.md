@@ -172,12 +172,7 @@ and keep her 10 yd from Enchanted Elementals in phase 3.
 1. **Main-tank flag on `Bullwark`.** Grounding, the Misdirects and the
    Static Charge exemption all resolve the main tank from it. It was set
    on 2026-10-08.
-2. **Ararin converted at the pull.** Check with a bare `co`; if `tank`
-   shows, send the paladin pair (CLAUDE.md rule 1):
-   ```
-   /w Ararin co -tank,-tank assist,+dps,+dps assist
-   /w Ararin nc -tank assist,+dps assist
-   ```
+2. **Ararin in your group.** The module does the rest (below).
 3. **A shaman in your party.** On 2026-10-08, Bullwark's party (subgroup
    0: Anmine, Crumm, Ilyna, Restofarian) had none, so nobody grounds
    Shock Blast. Swap **Fimur** (enhancement) in and **Anmine** out to
@@ -185,35 +180,31 @@ and keep her 10 yd from Enchanted Elementals in phase 3.
    persists (`docs/raid-layout.md`), so swap back after, or rerun
    `scripts/raid-layout.sql` at the next stop.
 
-### Two macros, so nothing is typed mid-fight
+### Ararin's switch is automatic (mod-hprv-city, 2026-10-08)
 
-Make these before the pull (Esc → Macros → New) and put them on your
-bars. A macro sends each line as its own whisper.
+`HprvVashjPlayerScript` holds Ararin as DPS in phases 1 and 3 and makes
+him a tank in phase 2, in memory, then puts him back exactly as he was
+when the fight ends. That covers Setup step 2 too: he's held as DPS from
+the pull, whatever his saved row says. No whispers. Details are in
+`modules/mod-hprv-city/README.md`. Watch for its log lines:
+`journalctl -u hprv-worldserver | grep Vashj`.
 
-**ARA TANK** (at 70%):
+If it ever has to be done by hand, these are the two macros:
 ```
 /w Ararin co +tank,+tank assist,-dps,-dps assist
 ```
-
-**ARA DPS** (at the pull if needed, and when the shield drops):
 ```
 /w Ararin co -tank,-tank assist,+dps,+dps assist
 /w Ararin nc -tank assist,+dps assist
 ```
 
-The real fix, if macros still feel like too much, is to do the switch in
-`mod-hprv-city`. The module would watch Vashj's phase and change
-Ararin's strategies in memory (`PlayerbotAI::ChangeStrategy`, like the
-city wander). Then nothing is whispered and nothing is saved to
-`playerbots_db_store`. That needs a module build and a short stop.
-
 ### The fight
 
 - **Phase 1:** pull and drag her to the middle of the platform. If you
   get Static Charge, step out of the group.
-- **At 70%, when the shield goes up:** press **ARA TANK**. He takes the Striders. You pick up the Coilfang Elites. Leave the
+- **At 70%, when the shield goes up:** the module makes Ararin a tank. He takes the Striders. You pick up the Coilfang Elites. Leave the
   cores to the bots.
-- **When the shield drops (phase 3):** press **ARA DPS** straight away, and take Vashj back. Keep her away from the
+- **When the shield drops (phase 3):** the module holds Ararin as DPS again. Take Vashj back. Keep her away from the
   Enchanted Elementals.
-- **After:** every whisper rewrote Ararin's saved row (rule 2). Check
-  with a bare `co` that he ended up converted.
+- **After:** nothing to undo. Don't whisper Ararin `co`/`nc` during the
+  fight, or the switched state gets saved (rule 2).
