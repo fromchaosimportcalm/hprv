@@ -6,7 +6,7 @@ triggers, actions and multipliers are in `src/Ai/Raid/SSC/`, wired in
 Leotheras, Karathress, Morogrim and Vashj, plus two trash mechanics
 (Underbog Colossus toxic pools and Greyheart Tidecaller totems).
 
-Only Karathress is written up below. The others are scripted but not
+Karathress: killed 2026-10-08. Only Karathress is written up below. The others are scripted but not
 yet read. Add them here as they're fought.
 
 ---
@@ -118,3 +118,9 @@ check that both rows are clean:
 - Tidalvess dies first, so whatever you hold gets lighter early.
 - Karathress gains each dead guard's abilities, so his damage on you
   climbs late. Save Shield Wall for the end.
+- **Being thrown into the air over and over is a Cyclone.** Caribdis
+  casts `SPELL_SUMMON_CYCLONE` (38337) on a random target
+  (`boss_fathomlord_karathress.cpp:515`), and the cyclone knocks up
+  whoever it reaches. If it settles on your tank spot, move. On the
+  first kill (2026-10-08) it kept bouncing Bullwark until he moved
+  Karathress, and then he went down.
