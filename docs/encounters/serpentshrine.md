@@ -6,7 +6,7 @@ triggers, actions and multipliers are in `src/Ai/Raid/SSC/`, wired in
 Leotheras, Karathress, Morogrim and Vashj, plus two trash mechanics
 (Underbog Colossus toxic pools and Greyheart Tidecaller totems).
 
-Karathress: killed 2026-10-08. Only Karathress is written up below. The others are scripted but not
+Karathress: killed 2026-10-08. Karathress and Vashj are written up below. The others are scripted but not
 yet read. Add them here as they're fought.
 
 ---
@@ -124,3 +124,79 @@ check that both rows are clean:
   whoever it reaches. If it settles on your tank spot, move. On the
   first kill (2026-10-08) it kept bouncing Bullwark until he moved
   Karathress, and then he went down.
+
+---
+
+## Lady Vashj
+
+**Untested: written from the script on 2026-10-08, before the first
+pull.** Correct this after the first attempt. The phase 2 hand-off is the
+part most likely to need changing.
+
+**You tank her. Ararin tanks only in phase 2, for the Striders.** Making
+Ararin main tank looks easier but is worse, for two reasons:
+
+- **The Strider tank would be you, without Fear Ward.** Striders go to
+  assist tank 0. A human in prot spec counts as a tank
+  (`IsTank(player)` falls back to spec), so with the main-tank flag on
+  Ararin, Bullwark is assist tank 0 and the hunters Misdirect Striders
+  onto him. The raid cheat (`BotCheats` includes `raid`) makes Striders
+  tankable by putting Fear Ward on tanks, but only a *bot* casts that on
+  itself (`LadyVashjTankAttackAndMoveAwayStriderAction`), so you'd be
+  feared through phase 2.
+- **Rule 1 is live here.** Unlike Karathress and the Council, nothing in
+  the Vashj script turns off taunts. A tank-specced bot in phases 1 and
+  3 follows your target, decides it has lost aggro, and taunts her.
+  `TankAssistAction` is only blocked in phases 2 and 3
+  (`LadyVashjDisableAutomaticTargetingAndMovementModifier`), and the
+  lost-aggro taunt is a separate trigger.
+
+Phases, as the script defines them (`SSCHelpers.cpp:209-230`): **1** is
+above 70%; **2** is at or below 70% with Magic Barrier up; **3** is
+after the barrier drops.
+
+### What the script does on its own
+
+| Phase | What it does |
+|---|---|
+| 1 | Hunters Misdirect her to the main tank above 90%. Ranged spread in an arc around the platform center. A bot with Static Charge runs from the group (the main tank is exempt). The shaman **in the main tank's party** drops Grounding Totem for Shock Blast, and won't use Windfury, Wrath of Air or Nature Resistance totems while she's up. DPS hold their cooldowns, and shamans hold Bloodlust until phase 3 |
+| 2 | **Cores, all bots:** with the raid cheat, a melee DPS bot teleports to each Tainted Elemental, loots the core and passes it down a chain of four bots to the generators. The **raid leader is never in that chain** (`GetDesignatedCoreLooter`). Targets: hunters and mages kill Enchanted Elementals first; other ranged kill Striders, then Elites; melee DPS kill Enchanted, then Elites. Assist tank 0 takes Striders, gets Fear Ward and drags them 28 yd from Vashj. Bots stay within ~55–60 yd of the center, so they don't run down the stairs |
+| 3 | Hunters kill Sporebats, bots avoid the poison clouds, and hunters Misdirect her to the main tank again between 50% and 40%. Bloodlust goes out |
+
+What the script does for a bot main tank that **you do by hand**: drag
+her to the platform center in phase 1 (`VASHJ_PLATFORM_CENTER_POSITION`),
+and keep her 10 yd from Enchanted Elementals in phase 3.
+
+### Setup
+
+1. **Main-tank flag on `Bullwark`.** Grounding, the Misdirects and the
+   Static Charge exemption all resolve the main tank from it. It was set
+   on 2026-10-08.
+2. **Ararin converted at the pull.** Check with a bare `co`; if `tank`
+   shows, send the paladin pair (CLAUDE.md rule 1):
+   ```
+   /w Ararin co -tank,-tank assist,+dps,+dps assist
+   /w Ararin nc -tank assist,+dps assist
+   ```
+3. **A shaman in your party.** On 2026-10-08, Bullwark's party (subgroup
+   0: Anmine, Crumm, Ilyna, Restofarian) had none, so nobody grounds
+   Shock Blast. Swap **Fimur** (enhancement) in and **Anmine** out to
+   subgroup 2. Both are melee, so nothing else shifts. The layout
+   persists (`docs/raid-layout.md`), so swap back after, or rerun
+   `scripts/raid-layout.sql` at the next stop.
+
+### The fight
+
+- **Phase 1:** pull and drag her to the middle of the platform. If you
+  get Static Charge, step out of the group.
+- **At 70%, when the shield goes up:** make Ararin a tank:
+  ```
+  /w Ararin co +tank,+tank assist,-dps,-dps assist
+  ```
+  He takes the Striders. You pick up the Coilfang Elites. Leave the
+  cores to the bots.
+- **When the shield drops (phase 3):** convert Ararin back straight away
+  (both whispers in Setup), and take Vashj back. Keep her away from the
+  Enchanted Elementals.
+- **After:** every whisper rewrote Ararin's saved row (rule 2). Check
+  with a bare `co` that he ended up converted.
