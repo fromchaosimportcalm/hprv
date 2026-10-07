@@ -4,6 +4,20 @@ Bullwark is **never re-rolled by `init=`** (`gear-pass.sh master` refuses).
 He is the only body whose gear is chosen by hand, so it's recorded here
 so it can be restored exactly.
 
+## Changes since the snapshot (read 2026-10-08)
+
+Three slots changed from loot. Everything else is as in the table below.
+
+| Slot | Now | ilvl | Was | Defence |
+|---|---|---|---|---|
+| Neck | Frayed Tether of the Drowned (30099) | 128 | Barbed Choker | +8 |
+| Finger 1 | Signet of the Last Defender (33499), 45 sta, 28 block | 141 | Shermanar Great-Ring | −23 |
+| Off hand | Bulwark of the Amani Empire (33326), Shield - Major Stamina, a dodge/stamina gem | 128 | Shield of Impenetrable Darkness | −15 |
+
+**Defence now: 409 rating → 523 skill**, 33 over the floor (computed from
+items, enchants, gems and active socket bonuses). The old ring and shield
+are in his bags if the floor is ever needed back.
+
 ## Snapshot, 2026-09-26 (enchanted and gemmed)
 
 Read from `character_inventory` / `item_instance` on the box after a
