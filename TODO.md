@@ -24,6 +24,8 @@ Measured on the box 2026-09-26 unless marked otherwise.
 | 8 | Transmog NPC (Thunderfury!) | do | **Done and verified in game 2026-10-03** |
 | 9 | Redeem tier tokens for the bots | do | **Done 2026-10-03.** Re-run after token drops. In game: `/ra equip upgrade`, `/ra maintenance` |
 | 10 | Fights feel a little easy | plan | Gruul 2026-10-03: quick kill. Feeds the HP-restore work in `tuning/` |
+| 11 | Bots spam "I don't have a Fishing Pole" | do | **Config changed 2026-10-08.** Needs the two reloads in game |
+| 12 | Titles for the bots | do | **Script dry-run clean 2026-10-08.** Needs a server stop |
 
 ---
 
@@ -529,3 +531,30 @@ deaths, and the fights feel "a little easy". That's the 3.0.2 30% HP nerf
 still in place. It argues for starting the HP restore (CLAUDE.md
 "BC-feel tuning"), in Karazhan first as planned (ADR 0005)
 
+
+## 11. Fishing whispers at the Lurker Below
+
+Casting Fishing gives every group bot with the skill `master fishing`. None
+of the pool owns a pole, so each whispers that it has none, forever: the
+strategy only ends more than 30 yd from water, and Serpentshrine is all
+water. Cause and source references: `docs/build.md`, "Fishing".
+
+- [x] `AiPlayerbot.EnableFishingWithMaster = 0` on the box (backup
+      `playerbots.conf.20261007-132756.bak`) and in `docs/build.md`.
+      No bot had `master fishing` saved in `playerbots_db_store`
+- [ ] In game: `.reload config`, then `.playerbots bot reload` (rule 5;
+      it's a scalar, so no restart). Relog once to clear anyone already stuck
+- [ ] Next Lurker: cast Fishing and check nobody whispers
+
+## 12. Titles for the bots
+
+`scripts/bot-titles.sql` gives the 24 bots in guild HPRV a random title
+that fits a 2.4.3 Horde raider who has seen Black Temple: mostly Hand of
+A'dal and Champion of the Naaru, the old honor ranks, a few arena titles,
+and rare top ones. Weights and reasons are in the script header. Bullwark
+is left alone. Re-running re-rolls everyone.
+
+- [x] Dry-run twice against live with ROLLBACK: every guard passed and the
+      rolls spread as intended
+- [ ] Stop, dump, run, start (steps in the script header). Bundle it with
+      the next stop if nothing's urgent

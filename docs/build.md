@@ -232,7 +232,27 @@ AiPlayerbot.RandomBotMaxLevel   = 70       # cosmetic: the module clamps to MaxP
 AiPlayerbot.RandomBotMaps       = 0,1,530  # no Northrend — keeps ambients in a TBC world
 AiPlayerbot.LootNeedRollLevel   = 2        # upgrades roll NEED (dist: 1, downgrades need to greed)
 AiPlayerbot.LootGreedRollLevel  = 1        # everything else rolls GREED (dist: 0, i.e. pass)
+AiPlayerbot.EnableFishingWithMaster = 0    # dist: 1. See "Fishing" below
 ```
+
+**Fishing (2026-10-08).** With the `.dist` value, the moment you cast
+Fishing every group bot with any Fishing skill gets `master fishing`
+(`SeeSpellAction.cpp:64`), and all of the pool have the skill (the factory
+gives it). None of them owns a fishing pole, and only *random* bots are
+handed one (`EquipFishingPoleAction::isUseful`). Everyone else whispers "I
+don't have a Fishing Pole" and returns false, on a `very often` trigger,
+forever. The strategy only ends when there's no water within
+`EndFishingWithMaster` (30 yd), which is never true in Serpentshrine
+Cavern. It's in-memory only, so a relog clears it. Found at the Lurker
+Below. Turning it off costs nothing, since no raid bot could fish anyway.
+If you ever want them fishing with you, they need a pole in their bags
+first.
+
+**Don't clear a stuck bot with `nc -master fishing`.** That's an `nc`
+whisper with a `-`, so it saves the bot's whole strategy list (CLAUDE.md
+rule 2). Relog instead. For the same reason, don't send a rule-1
+conversion `nc` while bots are in `master fishing`, or it gets frozen into
+their saved row and a relog won't clear it.
 
 **Loot rolls (2026-09-26).** At the `.dist` values a bot never rolls need
 and never rolls greed: upgrades drop to greed, and everything else drops
