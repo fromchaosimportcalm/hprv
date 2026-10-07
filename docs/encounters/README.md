@@ -9,6 +9,7 @@ it in advance is the difference between a clean night and a wipe.
 | Karazhan | `karazhan.md` |
 | Zul'Aman | `zulaman.md` |
 | Magtheridon's Lair | `magtheridon.md` |
+| Serpentshrine Cavern | `serpentshrine.md` |
 | Black Temple | `black-temple.md` |
 
 `docs/raid-night.md` remains the session runbook — starting up, flags,
