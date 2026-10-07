@@ -24,8 +24,8 @@ Measured on the box 2026-09-26 unless marked otherwise.
 | 8 | Transmog NPC (Thunderfury!) | do | **Done and verified in game 2026-10-03** |
 | 9 | Redeem tier tokens for the bots | do | **Done 2026-10-03.** Re-run after token drops. In game: `/ra equip upgrade`, `/ra maintenance` |
 | 10 | Fights feel a little easy | plan | Gruul 2026-10-03: quick kill. Feeds the HP-restore work in `tuning/` |
-| 11 | Bots spam "I don't have a Fishing Pole" | do | **Config changed 2026-10-08.** Needs the two reloads in game |
-| 12 | Titles for the bots | do | **Script dry-run clean 2026-10-08.** Needs a server stop |
+| 11 | Bots spam "I don't have a Fishing Pole" | do | **Done 2026-10-08** (live after the restart). Check at the next Lurker |
+| 12 | Titles for the bots | do | **Done 2026-10-08** |
 
 ---
 
@@ -542,8 +542,7 @@ water. Cause and source references: `docs/build.md`, "Fishing".
 - [x] `AiPlayerbot.EnableFishingWithMaster = 0` on the box (backup
       `playerbots.conf.20261007-132756.bak`) and in `docs/build.md`.
       No bot had `master fishing` saved in `playerbots_db_store`
-- [ ] In game: `.reload config`, then `.playerbots bot reload` (rule 5;
-      it's a scalar, so no restart). Relog once to clear anyone already stuck
+- [x] Live: the 2026-10-08 restart for item 12 loaded it, so no reloads needed
 - [ ] Next Lurker: cast Fishing and check nobody whispers
 
 ## 12. Titles for the bots
@@ -556,5 +555,8 @@ is left alone. Re-running re-rolls everyone.
 
 - [x] Dry-run twice against live with ROLLBACK: every guard passed and the
       rolls spread as intended
-- [ ] Stop, dump, run, start (steps in the script header). Bundle it with
-      the next stop if nothing's urgent
+- [x] Applied 2026-10-08 (backup `pre-titles-20261007-133329.sql.gz`, box
+      clock is a day behind). All checks passed; world back in 53 s. Rolled:
+      Warlord Crumm, Scarab Lord Dehme, Vengeful Gladiator Izri, Champion
+      Tengwe, three Hands of A'dal, three Champions of the Naaru, the rest
+      honor ranks, arena and Shattered Sun
