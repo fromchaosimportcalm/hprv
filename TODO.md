@@ -1,5 +1,10 @@
 # HPRV — to-do list
 
+> **Parked 2026-11-06.** This describes the homelab box (hprv-lxc), which is
+> no longer the server in active play. Stuart now hosts HPRV on a dedicated
+> server at his house with bots, reached over the site-to-site link, and
+> Clinton is levelling from scratch there. Nothing below is being worked on.
+
 Worked one at a time, in the order below. The order is not the order
 they were asked in: 3 is a quick config fix that changes the world 1 and
 6 depend on, and gear (2) has to come after the roster (1) is settled.

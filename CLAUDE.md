@@ -1,5 +1,10 @@
 # HPRV — Hellfire Peninsula Retirement Village
 
+> **Parked 2026-11-06.** This describes the homelab box (hprv-lxc), which is
+> no longer the server in active play. Stuart now hosts HPRV on a dedicated
+> server at his house with bots, reached over the site-to-site link, and
+> Clinton is levelling from scratch there. Nothing below is being worked on.
+
 A 3.3.5a AzerothCore + mod-playerbots server. One human tanks. A standing
 ten-man raid auto-logs-in with you; a wider pool of 40 characters is
 summoned by name for 25-man nights; ~20 more bots wander the world as
